@@ -1,18 +1,6 @@
-import { usePlaces } from './hooks/usePlaces'
-
+// Placeholder — CityForm + PlacesMap get composed in here in Step 9.
 function App() {
-  const { data: places, isLoading, error } = usePlaces('Paris')
-
-  if (isLoading) return <p>Loading...</p>
-  if (error) return <p>Error: {error.message}</p>
-
-  return (
-    <ul>
-      {places?.map((place) => (
-        <li key={place.id}>{place.name}</li>
-      ))}
-    </ul>
-  )
+  return <h1>TripFlow</h1>
 }
 
 export default App

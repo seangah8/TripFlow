@@ -8,4 +8,5 @@ export interface Place {
   rating: number | null;
   photoUrl: string | null;
   openingHours: Record<string, unknown> | null;
+  category: string | null;
 }
