@@ -35,4 +35,9 @@ export class Place {
 
   @Column('jsonb', { nullable: true })
   openingHours!: Record<string, unknown> | null;
+
+  // Google's primaryTypeDisplayName — stored from v1 alongside the rest of the
+  // searchText response, unused in the UI until v6's stop list/detail panel.
+  @Column('varchar', { nullable: true })
+  category!: string | null;
 }
