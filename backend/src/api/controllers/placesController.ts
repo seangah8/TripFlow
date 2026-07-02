@@ -1,18 +1,18 @@
 import { Request, Response } from 'express';
-import { getPlacesByCity } from '../services/placesService';
+import { fetchAndUpsertPlaces } from '../services/placesService';
 
-export async function getPlaces(req: Request, res: Response): Promise<void> {
-  const { city } = req.query;
-  if (typeof city !== 'string' || !city) {
-    res.status(400).json({ error: 'city query parameter is required' });
+export async function generatePlaces(req: Request, res: Response): Promise<void> {
+  const { city } = req.body;
+  if (typeof city !== 'string' || !city.trim()) {
+    res.status(400).json({ error: 'city is required' });
     return;
   }
 
   try {
-    const places = await getPlacesByCity(city);
+    const places = await fetchAndUpsertPlaces(city.trim());
     res.json(places);
   } catch (error) {
-    console.error('Failed to fetch places', error);
-    res.status(500).json({ error: 'Failed to fetch places' });
+    console.error('Failed to generate places', error);
+    res.status(500).json({ error: 'Failed to generate places' });
   }
 }

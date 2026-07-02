@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { getPlaces } from '../controllers/placesController';
+import { generatePlaces } from '../controllers/placesController';
 
 const router = Router();
 
-router.get('/places', getPlaces);
+router.post('/places/generate', generatePlaces);
 
 export default router;

@@ -11,6 +11,7 @@ const port = process.env.PORT;
 // treats them as different origins — CORS must allow the frontend's origin
 // explicitly for its direct fetch() calls to succeed.
 app.use(cors({ origin: process.env.CORS_ORIGIN }));
+app.use(express.json());
 
 app.use('/api', healthRoutes);
 app.use('/api', placesRoutes);
