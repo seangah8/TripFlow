@@ -197,7 +197,7 @@ Valid values:
 
 ## 4. API Contract
 
-> All endpoints prefixed with `/api`. Frontend calls via Vite proxy (no CORS needed in dev).
+> All endpoints prefixed with `/api`. Frontend calls the backend directly at `VITE_API_URL` (`frontend/.env`); the backend enables CORS for the frontend's origin (`CORS_ORIGIN` in `backend/.env`).
 
 ---
 
