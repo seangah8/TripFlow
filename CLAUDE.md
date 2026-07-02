@@ -200,6 +200,7 @@ Do not comment what the code does — well-named identifiers handle that. Commen
 - Always use explicit return types on exported functions
 - Prefer `interface` over `type` for object shapes
 - Use `!` (non-null assertion) only when the value is guaranteed by the surrounding logic — add a comment explaining why if it isn't obvious
+- TypeORM `@Column()` decorators must always specify an explicit column type (e.g. `@Column('varchar')`, `@Column('uuid')`, `@Column('int')`), never a bare `@Column()`. The backend runs on `tsx`, which uses esbuild — esbuild doesn't reliably emit the decorator metadata TypeORM needs to infer a column type from the TS property type, and a bare `@Column()` crashes the app at startup with `ColumnTypeUndefinedError`.
 
 ### Naming
 - Files: `camelCase.ts` for utilities, `PascalCase.ts` for entities and React components
