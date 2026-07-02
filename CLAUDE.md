@@ -27,8 +27,10 @@ TripFlow/
 │       └── ...
 ├── .claude/
 │   └── skills/
-│       ├── log-learning.md
-│       └── test-ai-pipeline.md
+│       ├── log-learning/
+│       │   └── SKILL.md
+│       └── test-ai-pipeline/
+│           └── SKILL.md
 ├── backend/               ← Node.js + Express + TypeORM
 │   ├── src/
 │   │   ├── server.ts
