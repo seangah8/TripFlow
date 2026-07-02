@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
-import { TripPreferences } from '../types/trip';
+import type { TripPreferences } from '../types/trip';
 
 // No `owner` column yet — the `users` table doesn't exist until the
 // persistence/auth session, so there's nothing for it to reference.
