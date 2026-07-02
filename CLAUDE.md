@@ -153,8 +153,9 @@ After completing a step, do all four of the following, in this order, before tou
 1. **Post the step summary in the chat response first.** The summary must include:
    - What was built (files created or changed)
    - Why each decision was made (not what the code does — why those specific choices)
+   - A suggested commit title for the step — short, focused on the main change. This is a suggestion only; do not actually run `git commit` unless the user explicitly asks.
 
-2. **Then write that same step summary** to `session-notes/session-N/step-N.md`.
+2. **Then write that same step summary** (including the suggested commit title) to `session-notes/session-N/step-N.md`.
 
 3. **Ask the checkpoint question:**
    > "Is everything clear? Does everything seem correct to you? Ready to move to the next step?"
