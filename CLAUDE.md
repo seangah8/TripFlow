@@ -148,16 +148,18 @@ Session 0 — Steps:
 
 ### 5.4 At the end of each step — checkpoint
 
-After completing a step, do all three of the following before touching anything else:
+After completing a step, do all four of the following, in this order, before touching anything else:
 
-1. **Write the step summary** to `session-notes/session-N/step-N.md`. The summary must include:
+1. **Post the step summary in the chat response first.** The summary must include:
    - What was built (files created or changed)
    - Why each decision was made (not what the code does — why those specific choices)
 
-2. **Ask the checkpoint question:**
+2. **Then write that same step summary** to `session-notes/session-N/step-N.md`.
+
+3. **Ask the checkpoint question:**
    > "Is everything clear? Does everything seem correct to you? Ready to move to the next step?"
 
-3. **Wait for confirmation** before starting the next step. Do not proceed automatically.
+4. **Wait for confirmation** before starting the next step. Do not proceed automatically.
 
 ---
 
