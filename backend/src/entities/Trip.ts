@@ -8,7 +8,7 @@ export class Trip {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column()
+  @Column('varchar')
   city!: string;
 
   @Column('date')

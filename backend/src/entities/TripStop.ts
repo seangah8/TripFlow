@@ -7,7 +7,7 @@ export class TripStop {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column()
+  @Column('uuid')
   tripId!: string;
 
   // Cascade delete: removing a trip removes its stops. Places are a shared
@@ -16,7 +16,7 @@ export class TripStop {
   @JoinColumn({ name: 'trip_id' })
   trip!: Trip;
 
-  @Column()
+  @Column('uuid')
   placeId!: string;
 
   @ManyToOne(() => Place)
@@ -26,10 +26,10 @@ export class TripStop {
   @Column('date')
   date!: string;
 
-  @Column()
+  @Column('int')
   order!: number;
 
-  @Column()
+  @Column('int')
   estimatedMinutes!: number;
 
   @Column('text', { nullable: true })

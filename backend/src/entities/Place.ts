@@ -3,15 +3,19 @@ import { numericTransformer } from '../utils/numericTransformer';
 
 // TypeORM populates these fields at runtime (not via constructor), so the
 // `!` assertions below are safe despite strict property initialization.
+
+// Column types are always given explicitly (e.g. 'varchar') rather than left
+// for TypeORM to infer from TS types — tsx/esbuild doesn't reliably emit the
+// decorator metadata TypeORM needs to guess a column type, which crashes at startup.
 @Entity('places')
 export class Place {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ unique: true })
+  @Column('varchar', { unique: true })
   googlePlaceId!: string;
 
-  @Column()
+  @Column('varchar')
   name!: string;
 
   @Column('decimal', { precision: 10, scale: 7, transformer: numericTransformer })
@@ -20,13 +24,13 @@ export class Place {
   @Column('decimal', { precision: 10, scale: 7, transformer: numericTransformer })
   lng!: number;
 
-  @Column()
+  @Column('varchar')
   city!: string;
 
   @Column('decimal', { precision: 3, scale: 1, nullable: true, transformer: numericTransformer })
   rating!: number | null;
 
-  @Column({ nullable: true })
+  @Column('varchar', { nullable: true })
   photoUrl!: string | null;
 
   @Column('jsonb', { nullable: true })
