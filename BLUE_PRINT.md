@@ -1,234 +1,251 @@
 # TripFlow — BLUE_PRINT
 
-> Single source of truth for everything: what we're building, how it works, what the data looks like, and what each session produces. Blueprint reasoning is folded in. Treat decisions here as locked unless we explicitly update this file together.
+> Single source of truth: what we're building, in what order, and why. A versioned workflow: each version (v0–v10) is a complete, working, demoable vertical slice — backend and frontend together — with intelligence layered on top of the previous version, never a backend-only session with nothing visible in the browser. One version per session (Session 1 ships v1, Session 2 ships v2, etc.). Treat decisions here as locked once approved.
 
 ---
 
-## 1. App Overview & v1 Scope
+## 1. App Overview
 
-**What it is:** An AI-assisted vacation planner. The user provides a destination city, travel dates, and preferences. The app fetches real places from Google Places, groups them into days by geographic proximity, and uses Claude to select, order, and explain the best stops for each day — producing a complete day-by-day itinerary.
+**What it is:** An AI-assisted vacation planner. The user picks a city (later: dates, preferences, a hotel), generates a day-by-day itinerary built from real Google Places data, geographically clustered, and — from v5 onward — curated and explained by Claude.
 
-**Core principle:** Places come from Google Places (real, verified data). Claude only curates from that list — it never invents places.
+**Core principle (unchanged from v0):** Places come from Google Places, never invented. Claude only curates from what Google actually returned.
 
-**Who uses it:** A single trip owner planning on behalf of their travel group. No collaborative multi-user editing in v1.
+**Who uses it:** A single trip owner planning for their group. No collaborative editing.
 
-**Preferences the user can set:**
-- **Vibe / pace** — relaxed / moderate / packed (affects stops per day)
-- **Interests** — museums, food, nature, nightlife, shopping (affects place types fetched)
-- **Group type** — solo / couple / family with kids / friends (affects Claude's recommendations)
-- **Budget** — budget / mid-range / luxury (affects place selection)
-
-**Plan editing:** View-only in v1. The generated plan cannot be manually reordered or modified. Editing is a future scope item.
-
-**Trip length:** Maximum 14 days. Start date and end date are both required before a plan can be generated — the actual calendar dates determine day-of-week, which determines which places are open each day.
-
-**v1 in / out of scope:**
-
-| In scope | Out of scope |
-|----------|-------------|
-| Single city per trip | Multi-city itineraries |
-| Generate + view plan | Edit / reorder plan manually |
-| Save & reload trips (Session 2) | Multi-user / shared trips |
-| Map view per day (Session 3) | In-app routing / turn-by-turn |
-| Export day to Google Maps (Session 3) | City-level place caching |
-
-## 2. User Flows
-
-> The full UI vision is described here. Refer to Section 9 (Session Build Plan) for which session implements each screen.
+**The versioning philosophy:** every version must run end-to-end in a browser by the time it's done. No version ships backend work with nothing to look at. Complexity is added by swapping one piece at a time — random day-splitting becomes real clustering (v2→v3), a bare fetch becomes preference-driven (v3→v4), a dumb filter becomes an AI curator (v4→v5) — while everything built in a prior version keeps working.
 
 ---
 
-### Screen 1 — Landing Page
-- App name ("TripFlow") + short tagline
-- One large "Plan a trip" CTA button
-- Clicking it navigates to the trip creation wizard
+## 2. Version Build Plan
+
+| Version | Adds | Still not doing |
+|---|---|---|
+| **v0** | Skeleton: DB ↔ backend ↔ frontend proven, one seeded place | Everything below |
+| **v1** | Pick a city, generate button, real Google Places fetch, markers on a map | Dates, days, clustering, preferences, AI, persistence of a "trip" |
+| **v2** | Date range (max 14 days), day timeline UI, trip persisted to DB, places split across days **randomly** | Real geography, preferences, AI |
+| **v3** | Real K-means clustering replaces the random day-split | Preferences, AI |
+| **v4** | Preferences wizard (interests/vibe/group/budget) drives the Google Places search itself | AI curation |
+| **v5** | Claude sits between the (now larger) Google fetch and clustering, filtering to what's actually worth including | Per-stop time estimates, reasoning, opening hours, ordering |
+| **v6** | Claude also outputs `estimatedMinutes` + `reasoning` per stop; frontend gets the stop-list column + click-to-detail panel | Auth, opening hours, ordering |
+| **v7** | Login/register, trips dashboard (cards + "new trip"), `owner` on trips, "Open in Google Maps" export | Opening hours, ordering |
+| **v8** | Opening-hours awareness: drop stops closed on their assigned day; move a Sunday-only place onto a Sunday if the trip has one | Ordering |
+| **v9** | Hotel/address input; each day's stops get ordered from that starting point using position + hours | — |
+| **v10** *(speculative)* | `Vacation` wraps multiple `Trip`s — one vacation, multiple cities, each city still its own single-city trip exactly as v1–v9 built it | Everything else in `FUTURE_SCOPE.md` |
+
+v10 is a stretch goal, not a committed target — see its section below for why it doesn't need to be committed to be worth designing now. Anything not listed above (editable/draggable plans, multi-user/shared trips, place caching across cities, notifications, mobile) is genuinely out of scope — see `FUTURE_SCOPE.md`.
 
 ---
 
-### Screen 2 — Trip Creation Wizard (3 steps)
+## 3. Version Detail
 
-**Step 1: Destination & Dates**
-- City name (text input)
-- Start date + end date (date pickers) — both required before advancing
-- Max 14 days between start and end
-
-**Step 2: Preferences**
-- **Interests** — multi-select chip row: Museums · Food & Drink · Nature · Nightlife · Shopping *(more can be added)*
-- **Vibe / pace** — dropdown: Relaxed / Moderate / Packed
-- **Group type** — dropdown: Solo / Couple / Family with kids / Friends
-- **Budget** — dropdown: Budget / Mid-range / Luxury
-
-**Step 3: Confirm & Generate**
-- Summary card showing city, dates, and selected preferences
-- "Generate my trip" button
-- Clicking it triggers the AI pipeline and shows a loading state
+### v0 — Skeleton *(done, Session 0)*
+Unchanged from the original blueprint: backend + frontend scaffolded, TypeORM connected, one seeded `Place` fetched and rendered in the browser.
 
 ---
 
-### Screen 3 — Loading State
-- Shown while the backend fetches places, clusters, and calls Claude
-- Simple message: "Building your itinerary for [City]…"
+### v1 — Real places on a map
+
+**User-facing outcome:** Type a city, hit "Generate," see ~20 real Google Places rendered as markers on an interactive map. No dates, no days, no AI, no persistence beyond the `places` catalog itself.
+
+**Backend:**
+- `placesService.ts`: `fetchAndUpsertPlaces(city)` — one or a few `searchText` calls against Google Places (New) for the city, broad query (no interest filtering yet — that's v4), upserts into `places` (same table/columns as v0: id, googlePlaceId, name, lat, lng, city, rating, photoUrl, openingHours).
+- New endpoint: `POST /api/places/generate` — body `{ city: string }` → triggers the fetch/upsert, returns the resulting `Place[]`. (Deliberately not under `/api/trips` yet — there's no trip concept, no dates, nothing to persist as a `Trip` row.)
+
+**Frontend:**
+- Single page. City text input + "Generate" button + a map (**Google Maps JavaScript SDK**, confirmed — visually and behaviorally consistent with the Google Places data driving the app; needs the Maps JavaScript API enabled on the same Google Cloud project as the existing Places key).
+- `useGeneratePlaces` — a TanStack Query mutation wrapping `POST /api/places/generate` (confirmed: TanStack Query from v1 for clean loading/error/retry state on the API call; no Zustand yet — the form is a single city input, plain `useState` covers it).
+- On success: drop a marker per returned place.
 
 ---
 
-### Screen 4 — Trip Plan View *(the main screen)*
+### v2 — Date range, day timeline, random day-split
 
-**Layout:**
-```
-┌─────────────────────────────────────────────────────────┐
-│ ← Back          TripFlow — Paris · Jul 15–20            │
-├──────────────────┬──────────────────────────────────────┤
-│                  │                                      │
-│   Stop list      │          Map (city)                  │
-│   (current day)  │   [markers for each stop today]      │
-│                  │                                      │
-│   • Stop 1       │                                      │
-│   • Stop 2       │                                      │
-│   • Stop 3       │                                      │
-│                  │                                      │
-├──────────────────┴──────────────────────────────────────┤
-│        Day timeline:  [Jul 15] [Jul 16] [Jul 17] ...    │
-└─────────────────────────────────────────────────────────┘
-```
+**User-facing outcome:** Add a start/end date range (max 14 days) alongside the city input. Generating now produces a full trip: a day timeline below the map, click a day to see that day's places on the map. Places are split across days **randomly** — no geography yet.
 
-**Left panel — stop list for the selected day:**
-- Ordered list of stops for the active day
-- Each stop shows: name, category, opening hours
+**Backend:**
+- `Trip` and `TripStop` entities now get real rows written (schema unchanged from the original blueprint — see Section 4 below). A trip is created and persisted **the moment it's generated**, with no `owner` — matches the schema's already-nullable `owner` column, so persistence doesn't wait for auth (v7).
+- New endpoint: `POST /api/trips/generate` — body `{ city, startDate, endDate }` → fetches places (more of them now — enough to cover `totalDays × a few per day`), assigns each place to a day via a simple round-robin/random split, saves `Trip` + `TripStop` rows, returns the full day-by-day response (see Section 5).
+- Google Places fetch needs to avoid returning the same ~20 places on repeat searches for the same city — needs either pagination (`nextPageToken`) or varying the query text across calls.
 
-**Right panel — map:**
-- Full map of the city
-- Numbered markers for each stop of the active day
-- Clicking a marker selects that stop
-
-**Bottom — day timeline / picker:**
-- Horizontal scrollable row: one card per day (date + day number)
-- Clicking a day updates both the map and the stop list
-
-**Stop detail panel** (opens when a stop is clicked — either from list or map):
-- Place name + category
-- Opening hours for that day
-- Estimated time to spend (provided by Claude)
-- Claude's reasoning: why this place was chosen / what to expect
-- Address
-
-**Top-left back arrow:** Returns to the trips list (Session 2) or landing page (Session 0–1)
+**Frontend:**
+- Date range pickers.
+- Day timeline component (horizontal row of day cards) below the map.
+- Clicking a day filters which markers show — the full trip response is fetched once and the frontend filters client-side; no per-day fetch needed.
 
 ---
 
-### Screen 5 — Trips List *(Session 2)*
-- Grid of saved trip cards: city name, dates, cover image (or placeholder)
-- "New trip" button
-- Clicking a card opens the Trip Plan View for that trip
+### v3 — Real clustering
 
-## 3. Data Schema
+**User-facing outcome:** Same UI as v2. The difference is invisible in the screenshots but obvious in the result: each day's stops are now genuinely close together geographically instead of scattered randomly across the city.
 
-> `User` is not created until Session 2 (auth). All other entities exist from Session 0/1.
+**Backend:**
+- `utils/clustering.ts` — K-means, same design as before it was discarded this session: N centroids seeded by slicing the longitude range of all fetched places into N equal parts (deterministic, no RNG), up to 10 iterations, merge any cluster under 3 places into its nearest neighbor, cap each day at 15 places (highest-rated first) if a cluster somehow exceeds that. Pure function, no DB dependency, fully unit-testable — this is also where Jest gets (re-)introduced, since this is the first pure algorithmic piece worth testing in isolation.
+- `tripGenerationService.ts` swaps the random day-split for `clusterPlacesByDay(places, totalDays)`.
+
+**Frontend:** unchanged.
 
 ---
 
-### `places`
+### v4 — Preferences drive the search
+
+**User-facing outcome:** A preferences step (interests, vibe/pace, group type, budget) appears before generating. The places Google actually returns now reflect those choices, not a generic "tourist attractions" search.
+
+**Backend:**
+- `preferences` (jsonb) added to `Trip`, matching the original blueprint's shape (`{ vibe, interests[], groupType, budget }`).
+- `fetchAndUpsertPlaces` gains an `interests` parameter, mapping to Google place-type filters (Museums → `museum`/`art_gallery`/`tourist_attraction`, Food & Drink → `restaurant`/`cafe`/`bar`/`bakery`, etc. — same mapping table as the original blueprint's Section 5).
+
+**Frontend:**
+- This is where a real multi-step form shows up for the first time (city+dates → preferences → confirm), so this is also where **Zustand** gets introduced — a `useTripStore` holding the in-progress wizard state across steps, exactly the point where a shared client-state store starts earning its keep.
+
+---
+
+### v5 — Claude curates
+
+**User-facing outcome:** No new UI. The *quality* of what shows up changes — Google now returns a much larger pool (~90–100 places), and Claude filters that pool down to what's actually worth including before clustering ever runs, instead of every fetched place surviving to the final trip.
+
+**Backend:**
+- `claudeService.ts` — one call per trip generation, sees the *entire* curated pool + preferences + trip length, returns the subset of `googlePlaceId`s it judges legit/interesting/on-theme. Model: `claude-sonnet-5`, via Anthropic's structured outputs (`output_config.format`) for a guaranteed-valid response shape.
+- `tripGenerationService.ts`: fetch → **Claude filters** → cluster (this ordering — curate before cluster, not after — is the one piece of design already validated earlier this session and carried forward unchanged).
+- Stretch goal for this version, not a hard requirement: if Claude's filtered pool is too small to cover `totalDays` well, re-query Google for more candidates before giving up.
+
+**Frontend:** unchanged.
+
+---
+
+### v6 — Time estimates, reasoning, and the stop detail panel
+
+**User-facing outcome:** Click a stop (from the day's list or its map marker) and a detail panel opens: name, category, estimated time to spend there, and Claude's reasoning for why it's on the trip.
+
+**Backend:**
+- Claude's response (Section 5's schema) gains `estimatedMinutes` and `reasoning` per selected stop, in the same v5 call — no new API round trip, just a richer response schema.
+
+**Frontend:**
+- Left-side stop list column next to the map (per the original blueprint's Screen 4 layout).
+- Stop detail panel, opens from either the list or a marker click.
+
+---
+
+### v7 — Accounts, dashboard, Google Maps export
+
+**User-facing outcome:** Register/log in. The homepage becomes a trips dashboard — cards for each saved trip plus a "new trip" button, instead of jumping straight into the generator. Each day also gets an "Open in Google Maps" link.
+
+**Backend:**
+- `User` entity + `users` table, `POST /api/auth/register`, `POST /api/auth/login` (JWT), auth middleware.
+- `owner` FK on `Trip` — now actually populated (was nullable and unused since v2).
+- `GET /api/trips` (list, scoped to the logged-in user), `GET /api/trips/:id` (reload) — first version these endpoints are actually needed, even though the underlying data has existed since v2.
+- Google Maps export URL builder (waypoints link) for a given day.
+
+**Frontend:**
+- Login/register forms, trips dashboard, back-navigation.
+
+---
+
+### v8 — Opening-hours awareness
+
+**User-facing outcome:** A place closed on the day it would've landed on no longer shows up there. A place that's *only* open on Sundays gets steered toward a Sunday in the trip instead of a day it's actually closed.
+
+**Backend:**
+- Reintroduce hours data into the pipeline: after clustering assigns real calendar dates, check each stop against `places.openingHours` for its assigned date.
+- If closed that day: prefer **reassigning** it to a different day in the trip where it's open (per the user's description — a place that's Sunday-only should move toward a Sunday, not just get dropped), falling back to dropping it only if no day in the trip works.
+
+---
+
+### v9 — Hotel-anchored routing
+
+**User-facing outcome:** The wizard asks for a hotel/starting address. Each day's stops are now ordered — starting from that address, in a sequence that makes geographic sense and respects each stop's opening hours.
+
+**Backend:**
+- Hotel lat/lng becomes the clustering anchor point (replacing the city-bounding-box centroid init from v3).
+- Within each day, order stops using position + hours constraints (starting point known for the first time — this is what made ordering impossible to do honestly any earlier).
+
+---
+
+### v10 — Vacations wrap multiple trips *(speculative — may never be reached)*
+
+**The idea:** every version through v9 assumes one trip = one city. v10 removes that ceiling without touching any of v1–v9's actual logic: a new `Vacation` entity sits *above* `Trip`, and a vacation has one or more trips, each one still a single, ordinary city trip built exactly the way it always was. A trip to just Paris is a vacation with one trip in it; a trip to Paris then Rome then Barcelona is one vacation with three trips. Clustering, Claude curation, opening-hours handling, and hotel-anchored routing all stay scoped to a single trip/city — nothing about them needs to know vacations exist.
+
+**User-facing outcome:** The homepage's primary action becomes "New Vacation" instead of "New Trip." Inside a vacation, "Add a city" runs the exact same per-city wizard (city → dates → preferences → confirm) built back in v1–v9, adding one more trip to the vacation each time. The dashboard shows vacations (which may span several cities) instead of bare trips.
+
+**Backend:**
+- New `Vacation` entity (see Section 4) — `Trip` gains a `vacationId` FK.
+- `POST /api/vacations` — creates a vacation (optional `name`).
+- `POST /api/vacations/:id/trips` — same request body as `POST /api/trips/generate` (city, dates, preferences, hotel address); runs the identical, unmodified trip-generation pipeline, just stamps the resulting `Trip` with the vacation it belongs to.
+- `GET /api/vacations` / `GET /api/vacations/:id` — list/load, each vacation nested with its full trips.
+
+**Frontend:**
+- Dashboard shows vacation cards (city list or custom name) instead of single-trip cards.
+- A vacation's view lets you switch between its trips (each trip's own map/day-timeline/stop-list view is unchanged from v6–v9) and add another city.
+
+**Why this is worth writing down even as a maybe:** it's the one piece of the whole roadmap that would be genuinely awkward to retrofit later if we didn't think about it now — every version from v2 onward writes `Trip` rows directly; if `Vacation` shows up as an afterthought, every one of those call sites needs revisiting. Designing it as a pure wrapper now means v1–v9 never have to change even if v10 is the one version that doesn't happen.
+
+---
+
+## 4. Data Schema
+
+Same core entities as the original blueprint, annotated with the version each field starts mattering:
+
+### `places` *(v0, populated for real from v1)*
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| id | uuid | ✅ | PK, auto-generated |
+| id | uuid | ✅ | PK |
 | googlePlaceId | varchar | ✅ | unique — dedup key |
 | name | varchar | ✅ | |
-| lat | decimal(10,7) | ✅ | 7 decimal places = ~1cm precision |
+| lat | decimal(10,7) | ✅ | |
 | lng | decimal(10,7) | ✅ | |
-| city | varchar | ✅ | plain string, no cities table |
+| city | varchar | ✅ | |
 | rating | decimal(3,1) | ❌ | nullable |
-| photoUrl | varchar | ❌ | nullable — one photo from Google Places |
-| openingHours | jsonb | ❌ | nullable — full Google Places hours object (local city time) |
+| photoUrl | varchar | ❌ | nullable |
+| openingHours | jsonb | ❌ | nullable — fetched from v1 onward, unused until v8 |
+| category | varchar | ❌ | nullable — Google's `primaryTypeDisplayName`, shown in the stop list from v6 |
 
----
-
-### `trips`
+### `trips` *(rows start existing at v2)*
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| id | uuid | ✅ | PK, auto-generated |
+| id | uuid | ✅ | PK |
 | city | varchar | ✅ | |
-| startDate | date | ✅ | required — needed to derive day-of-week for each stop |
-| endDate | date | ✅ | required — max 14 days from startDate |
-| preferences | jsonb | ✅ | `{ vibe, interests[], groupType, budget }` |
-| createdAt | timestamp | ✅ | auto |
-| owner | FK → users | ❌ | null until Session 2 adds auth |
+| startDate | date | ✅ | introduced v2 |
+| endDate | date | ✅ | introduced v2 |
+| preferences | jsonb | ❌ | nullable until v4 introduces the wizard |
+| createdAt | timestamp | ✅ | |
+| owner | FK → users | ❌ | nullable until v7 — trips persist without an owner from v2 onward |
+| vacationId | FK → vacations | ❌ | v10 — nullable so v2–v9's direct trip-generation flow keeps working unchanged; every trip created via v10's vacation flow gets one |
 
----
+### `vacations` *(v10, speculative)*
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| id | uuid | ✅ | PK |
+| name | varchar | ❌ | nullable — optional user label; dashboard falls back to listing the cities of its trips if empty |
+| owner | FK → users | ✅ | required — v10 is well after v7, auth already exists by then |
+| createdAt | timestamp | ✅ | |
 
-### `trip_stops`
+### `trip_stops` *(rows start existing at v2)*
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | id | uuid | ✅ | PK |
 | tripId | FK → trips | ✅ | cascade delete |
-| placeId | FK → places | ✅ | no cascade — places are a shared catalog |
-| date | date | ✅ | actual calendar date of this stop (derived from trip dates) |
-| order | int | ✅ | position within the day (1 = first stop of the day) |
-| estimatedMinutes | int | ✅ | Claude's estimated time to spend, in minutes |
-| reasoning | text | ❌ | nullable — Claude's explanation for this stop |
+| placeId | FK → places | ✅ | no cascade |
+| date | date | ✅ | random assignment v2, geographic v3+, hours-aware v8 |
+| order | int | ✅ | stable rendering position until v9; a real recommended sequence from v9 onward |
+| estimatedMinutes | int | ❌ | nullable until v6 |
+| reasoning | text | ❌ | nullable until v6 |
 
-> `trip_stops` is the **single source of truth** for the generated plan. No raw Claude response is stored in the DB.
-
----
-
-### `users` *(Session 2)*
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| id | uuid | ✅ | PK |
-| email | varchar | ✅ | unique |
-| passwordHash | varchar | ✅ | bcrypt |
-| createdAt | timestamp | ✅ | auto |
+### `users` *(v7)`
+Unchanged from the original blueprint: id, email, passwordHash, createdAt.
 
 ---
 
-### Preferences JSON shape
-```json
-{
-  "vibe": "moderate",
-  "interests": ["museums", "food"],
-  "groupType": "couple",
-  "budget": "mid-range"
-}
-```
+## 5. API Contract (grows per version)
 
-Valid values:
-- `vibe`: `"relaxed"` | `"moderate"` | `"packed"`
-- `interests`: array of `"museums"` | `"food"` | `"nature"` | `"nightlife"` | `"shopping"`
-- `groupType`: `"solo"` | `"couple"` | `"family"` | `"friends"`
-- `budget`: `"budget"` | `"mid-range"` | `"luxury"`
+### `POST /api/places/generate` *(v1 only — superseded by trips/generate from v2)*
+Request: `{ city }` → Response: `Place[]`
 
-## 4. API Contract
+### `POST /api/trips/generate` *(v2+)*
+Request grows over versions:
+- v2: `{ city, startDate, endDate }`
+- v4: `+ preferences`
+- v9: `+ hotelAddress` (or lat/lng, TBD when we get there)
 
-> All endpoints prefixed with `/api`. Frontend calls the backend directly at `VITE_API_URL` (`frontend/.env`); the backend enables CORS for the frontend's origin (`CORS_ORIGIN` in `backend/.env`).
-
----
-
-### `GET /api/health`
-**Purpose:** Sanity check — confirms backend + DB are up.
-**Response:**
-```json
-{ "ok": true }
-```
-
----
-
-### `POST /api/trips/generate`
-**Purpose:** The core endpoint. Takes city, dates, preferences → runs the full pipeline → saves trip + stops to DB → returns the complete plan.
-
-**Request body:**
-```json
-{
-  "city": "Paris",
-  "startDate": "2026-07-15",
-  "endDate": "2026-07-20",
-  "preferences": {
-    "vibe": "moderate",
-    "interests": ["museums", "food"],
-    "groupType": "couple",
-    "budget": "mid-range"
-  }
-}
-```
-
-**Response:**
+Response (stabilizes by v6):
 ```json
 {
   "tripId": "uuid",
@@ -238,22 +255,13 @@ Valid values:
   "days": [
     {
       "date": "2026-07-15",
-      "dayLabel": "Day 1 — Wednesday",
       "stops": [
         {
           "tripStopId": "uuid",
           "order": 1,
-          "place": {
-            "id": "uuid",
-            "name": "Louvre Museum",
-            "lat": 48.8606,
-            "lng": 2.3376,
-            "rating": 4.7,
-            "photoUrl": "https://...",
-            "openingHours": { }
-          },
+          "place": { "id": "uuid", "name": "...", "lat": 0, "lng": 0, "rating": 4.7, "category": "...", "photoUrl": "...", "openingHours": {} },
           "estimatedMinutes": 120,
-          "reasoning": "A cornerstone of Paris art, ideal for a moderate-paced morning..."
+          "reasoning": "..."
         }
       ]
     }
@@ -261,338 +269,48 @@ Valid values:
 }
 ```
 
----
+### `GET /api/trips` / `GET /api/trips/:id` *(built at v7, data has existed since v2)*
 
-### `GET /api/trips/:id`
-**Purpose:** Load a saved trip by ID. *(Used from Session 3 onward.)*
-**Response:** Same shape as the `POST /api/trips/generate` response above.
+### `POST /api/auth/register` / `POST /api/auth/login` *(v7)*
 
----
-
-### `GET /api/trips`
-**Purpose:** List all trips (for the trips list screen). *(Session 3)*
-**Response:**
-```json
-[
-  { "tripId": "uuid", "city": "Paris", "startDate": "2026-07-15", "endDate": "2026-07-20", "createdAt": "..." }
-]
-```
+### `POST /api/vacations`, `POST /api/vacations/:id/trips`, `GET /api/vacations`, `GET /api/vacations/:id` *(v10, speculative)*
+The trip-adding endpoint takes the exact same body as `POST /api/trips/generate` — it's the same pipeline, just stamping the result with a `vacationId`.
 
 ---
 
-### `GET /api/places?city=X`
-**Purpose:** Return places from DB filtered by city. Used in Session 0 as the toolchain proof endpoint.
-**Response:** Array of `Place` rows.
+## 6. Frontend Structure
 
-## 5. Google Places Integration
+### State management (confirmed)
+- **v1–v3:** plain `useState` for form fields; **TanStack Query** for the generate mutation (loading/error/retry).
+- **v4 onward:** **Zustand** (`useTripStore`) added once the multi-step wizard needs state shared across steps. TanStack Query continues to own all server data (places, trips).
 
-**API used:** Google Places API (New) — `POST https://places.googleapis.com/v1/places:searchText`
+### Map
+**Google Maps JavaScript SDK** (confirmed) — consistent with the Google Places data already driving the app. Requires the Maps JavaScript API enabled on the same Google Cloud project as the Places key; usage-billed beyond Google's free monthly credit.
 
-**How many places to fetch:** 60 total per search (the API max per request is 20, so we do 3 calls with different place type filters). This gives the clustering algorithm enough candidates across all days.
-
-**Interest → place type mapping:**
-| User interest | Google place types fetched |
-|--------------|--------------------------|
-| Museums | `museum`, `art_gallery`, `tourist_attraction` |
-| Food & Drink | `restaurant`, `cafe`, `bar`, `bakery` |
-| Nature | `park`, `national_park` |
-| Nightlife | `bar`, `night_club` |
-| Shopping | `shopping_mall`, `market`, `store` |
-
-If no interests are selected, fetch a mix across all categories.
-
-**Fields we request from the API** (`fieldMask`):
-- `places.id` (googlePlaceId)
-- `places.displayName` (name)
-- `places.location` (lat/lng)
-- `places.rating`
-- `places.photos` (we take the first photo reference and turn it into a URL)
-- `places.regularOpeningHours` (openingHours — already in local city time, no conversion needed)
-- `places.primaryTypeDisplayName` (category)
-
-**Storing places:** After fetching, we upsert into the `places` table using `googlePlaceId` as the dedup key. If the place already exists in the DB, we update its fields. This means repeated searches for the same city reuse and refresh existing rows — no duplicates.
-
-**Photo URL construction:**
-```
-https://places.googleapis.com/v1/{photoName}/media?maxWidthPx=800&key={API_KEY}
-```
-We store this full URL in `places.photoUrl`.
-
-## 6. AI Pipeline Contract
-
-**Model:** Claude Sonnet 4.6 via Anthropic API (`claude-sonnet-4-6`)
-
-**When Claude is called:** Once per day in the trip. If the trip is 5 days, Claude is called 5 times (one call per day's candidate cluster). Calls can run in parallel.
+### Key components by version
+| Component | Introduced |
+|---|---|
+| City input + Generate button + Map | v1 |
+| Date range pickers, Day timeline | v2 |
+| Preferences form / wizard steps | v4 |
+| Stop list column + Stop detail panel | v6 |
+| Login/register forms, Trips dashboard | v7 |
 
 ---
 
-### What Claude receives (per day)
+## 7. Architecture decisions (locked)
 
-```json
-{
-  "city": "Paris",
-  "date": "2026-07-15",
-  "dayOfWeek": "Wednesday",
-  "dayNumber": 1,
-  "totalDays": 5,
-  "preferences": {
-    "vibe": "moderate",
-    "interests": ["museums", "food"],
-    "groupType": "couple",
-    "budget": "mid-range"
-  },
-  "candidates": [
-    {
-      "googlePlaceId": "ChIJD7fiBh9u5kcRYJSMaMOCCwQ",
-      "name": "Louvre Museum",
-      "rating": 4.7,
-      "isOpenToday": true,
-      "openingHoursToday": "9:00 AM – 6:00 PM",
-      "photoUrl": "https://..."
-    }
-  ]
-}
-```
-
-**Key rules in the system prompt:**
-- You MUST only select places from the `candidates` list. Never invent or suggest places not in the list.
-- Do NOT include any place where `isOpenToday` is `false`.
-- Select between 3 and 6 stops per day depending on `vibe` (relaxed = 3–4, moderate = 4–5, packed = 5–6).
-- Order stops to make geographic and logical sense (e.g. morning landmarks → lunch → afternoon → evening).
-- Provide `estimatedMinutes` for each stop (realistic time to spend there).
-- Return valid JSON only — no prose outside the JSON.
+1. **Places come from Google Places — Claude only curates (from v5).** Claude never invents places, and it curates from the full pool, not a pre-cut geographic slice.
+2. **Clustering is deterministic code, not the LLM (from v3).** Same input always produces the same output.
+3. **Zustand (from v4) + TanStack Query (from v1). No Redux.**
+4. **`trip_stops` is the single source of truth for the generated plan** once it exists (v2+). No raw Claude response stored in the DB.
+5. **Build in vertical slices — for real this time.** Every version ends with something running in a browser. No version ships backend-only work.
+6. **Opening hours are always in local city time (from v8).** No timezone conversion needed, no timezone fields in the schema.
 
 ---
 
-### What Claude must return (per day)
+## 8. Open questions to confirm before v1 coding starts
 
-```json
-{
-  "stops": [
-    {
-      "googlePlaceId": "ChIJD7fiBh9u5kcRYJSMaMOCCwQ",
-      "order": 1,
-      "estimatedMinutes": 120,
-      "reasoning": "Start your Wednesday morning at the Louvre — its sheer scale rewards a full morning. As a couple on a moderate pace, 2 hours lets you cover the highlights without museum fatigue."
-    },
-    {
-      "googlePlaceId": "...",
-      "order": 2,
-      "estimatedMinutes": 60,
-      "reasoning": "..."
-    }
-  ]
-}
-```
-
-**Response validation:** After receiving Claude's response, the backend verifies:
-1. All `googlePlaceId` values exist in the candidates list (reject any that don't)
-2. `stops` array has between 1 and 8 entries
-3. `estimatedMinutes` is a positive integer
-4. If validation fails: log the raw response and return a 500 with a clear error message
-
-## 7. Clustering Algorithm
-
-**Goal:** Group ~60 fetched places into N day-buckets by geographic proximity, so each day's stops are in the same area of the city and walking between them is practical.
-
-**Algorithm: K-means with N clusters (one per day)**
-
-Steps:
-1. N = number of trip days (endDate − startDate + 1)
-2. Initialize N cluster centroids by evenly spacing them across the lat/lng range of all fetched places (deterministic — no random seed)
-3. Run up to 10 iterations of K-means:
-   - Assign each place to its nearest centroid (Euclidean distance on lat/lng is accurate enough within a city)
-   - Recalculate each centroid as the mean lat/lng of its assigned places
-4. Resulting clusters are the day-candidate sets passed to Claude
-
-**Why K-means is deterministic here:** We initialize centroids by splitting the bounding box of all places into N equal slices by longitude, not randomly. Same input always produces the same output.
-
-**Cluster size limits:** If a cluster ends up with fewer than 3 places, merge it with the nearest cluster and reduce N by 1 (prevents Claude getting too-small buckets).
-
-**Max candidates per day passed to Claude:** 15. If a cluster has more than 15, keep the 15 highest-rated places.
-
-**Where this code lives:** `backend/src/utils/clustering.ts`
-
-> **Future upgrade (out of scope v1):** When hotel coordinates are added, replace the city-centroid initialization with the hotel's lat/lng as the anchor point for each day. This naturally clusters nearby stops around where the user is sleeping.
-
-## 8. Opening Hours Strategy
-
-**Source:** Google Places `regularOpeningHours` field. Hours are returned in the **local time of the city** — no timezone conversion is ever needed.
-
-**What we store:** The full `regularOpeningHours` object as JSONB in `places.openingHours`. Google's format includes:
-- `periods`: array of `{ open: { day, hour, minute }, close: { day, hour, minute } }` where `day` is 0=Sunday … 6=Saturday (Google's convention)
-- `weekdayDescriptions`: array of human-readable strings like `"Monday: 9:00 AM – 6:00 PM"`
-
-**How we check if a place is open on a given trip date:**
-1. Take the `TripStop.date` (e.g. `"2026-07-15"`)
-2. Compute the JavaScript day-of-week: `new Date("2026-07-15").getUTCDay()` → returns 0=Sunday … 6=Saturday
-3. Look up that day in `openingHours.periods`
-4. Set `isOpenToday: true/false` in the candidate list sent to Claude
-
-**If `openingHours` is null:** Treat as open (unknown hours). Claude is told "hours not available" for that place.
-
-**What Claude sees:** Only `isOpenToday` (boolean) and `openingHoursToday` (the human-readable string for that day, e.g. `"9:00 AM – 6:00 PM"`). Claude never sees the raw periods array — it only gets the pre-computed values for the specific day it's planning.
-
-## 9. Session Build Plan
-
----
-
-### Session 0 — Scaffold + Toolchain Proof *(current)*
-**User-facing outcome:** A browser at `localhost:5173` shows a plain list with one place name ("Eiffel Tower") fetched from the local DB. Proves the full pipe — DB → API → screen — works.
-
-**What gets built:**
-- `backend/`: Express + TypeScript, TypeORM, all entities (`Place`, `Trip`, `TripStop`), `GET /api/health`, `GET /api/places?city=X`, seed script
-- `frontend/`: Vite + React + Zustand + TanStack Query, one `usePlaces` hook, plain `<ul>` list in `App.tsx`
-- `.claude/skills/log-learning.md` custom skill
-- `LEARNINGS.md`
-
----
-
-### Session 1 — Backend Pipeline (AI Pipeline proven, no frontend)
-**User-facing outcome:** None visible in the browser yet. The pipeline is verified by calling `POST /api/trips/generate` directly (curl / Postman) and seeing a real day-by-day plan saved to the DB. This session is about proving the hardest piece is correct before building UI around it.
-
-**What gets built:**
-- Google Places fetch service (`backend/src/api/services/placesService.ts`) — fetches, upserts places
-- Clustering algorithm (`backend/src/utils/clustering.ts`) — groups places into N day-buckets
-- Claude call service (`backend/src/api/services/claudeService.ts`) — builds prompt, calls API, validates response
-- Trip generation orchestrator (`backend/src/api/services/tripGenerationService.ts`) — wires all three together
-- `POST /api/trips/generate` endpoint + controller
-- Trip + TripStop save logic
-
-**Definition of done:** `POST /api/trips/generate` with a real city + dates + preferences returns a valid day-by-day plan in JSON and rows appear in `trips` + `trip_stops` tables.
-
----
-
-### Session 2 — Frontend Wizard + Plan Display
-**User-facing outcome:** User fills in the 3-step wizard (city → preferences → confirm), clicks "Generate my trip", sees a loading state, then a plain unstyled day-by-day list: each day's date and each stop's name + reasoning. Full pipeline visible end-to-end in the browser.
-
-**What gets built:**
-- Frontend: 3-step trip creation wizard (`TripWizard`, `Step1Destination`, `Step2Preferences`, `Step3Confirm`)
-- Zustand store for wizard state (`useTripStore`)
-- `useGenerateTrip` TanStack Query mutation hook
-- Loading state screen
-- Plain plan list view (`TripPlanView` — no map yet, just a list)
-
----
-
-### Session 3 — Persistence + Auth
-**User-facing outcome:** User can register, log in, generate a trip (which saves to their account), then come back later and reload any previously saved trip from a list of their trips.
-
-**What gets built:**
-- `User` entity + `users` table
-- `owner` FK added to `Trip`
-- `POST /api/auth/register`, `POST /api/auth/login` (JWT)
-- Auth middleware
-- `GET /api/trips`, `GET /api/trips/:id`
-- Frontend: register/login forms, trips list screen, back-navigation from plan view to trips list
-
----
-
-### Session 4 — Map + Export
-**User-facing outcome:** The trip plan view shows the full map layout described in Section 2 — map on the right with stop markers, stop list on the left, day timeline at the bottom. Each day also has an "Open in Google Maps" link that opens all stops in order in Google Maps.
-
-**What gets built:**
-- Map component (library TBD — likely Leaflet or Google Maps JS SDK)
-- Day timeline / picker component
-- Stop detail panel (hours, reasoning, estimated time)
-- Google Maps export URL builder (waypoints link)
-
----
-
-### Session 5 — Polish
-**User-facing outcome:** The app feels finished — proper loading spinners, error messages if generation fails, empty states, responsive layout.
-
-**What gets built:**
-- Loading states for generation, map, place fetch
-- Error boundaries + user-facing error messages
-- Edge cases: no places found for city, Claude response fails, date range too long
-- UI/UX refinement across all screens
-
-## 10. Frontend Structure
-
-### Routes
-| Path | Component | Session |
-|------|-----------|---------|
-| `/` | `LandingPage` | 0 |
-| `/plan` | `TripWizard` | 2 |
-| `/trip/preview` | `TripPlanView` (unsaved) | 2 |
-| `/trips` | `TripsList` | 3 |
-| `/trip/:id` | `TripPlanView` (saved) | 3 |
-| `/login` | `AuthPage` | 3 |
-
----
-
-### State split
-
-**Zustand (`useTripStore`) — client state:**
-- Wizard: `city`, `startDate`, `endDate`, `preferences`, `currentStep`
-- Plan view: `activeDay` (selected date), `selectedStopId`
-
-**TanStack Query — server state:**
-- `useGenerateTrip` — `POST /api/trips/generate` mutation
-- `useTrip(id)` — `GET /api/trips/:id` query
-- `useTrips()` — `GET /api/trips` query (trips list)
-- `usePlaces(city)` — `GET /api/places?city=X` query (Session 0 only)
-
-**`useState` — local component state:**
-- Form field values within each wizard step
-- Stop detail panel open/closed
-
----
-
-### Key components
-```
-frontend/src/
-├── pages/
-│   ├── LandingPage.tsx
-│   ├── TripWizard.tsx          ← orchestrates steps 1-2-3
-│   ├── TripPlanView.tsx        ← map + list + timeline layout
-│   ├── TripsList.tsx
-│   └── AuthPage.tsx
-├── components/
-│   ├── wizard/
-│   │   ├── Step1Destination.tsx
-│   │   ├── Step2Preferences.tsx
-│   │   └── Step3Confirm.tsx
-│   ├── plan/
-│   │   ├── StopList.tsx
-│   │   ├── StopDetail.tsx
-│   │   ├── DayTimeline.tsx
-│   │   └── MapView.tsx         ← Session 4
-│   └── ui/
-│       └── (shared small components)
-├── hooks/
-│   ├── useTripStore.ts         ← Zustand store
-│   ├── useGenerateTrip.ts
-│   ├── useTrip.ts
-│   └── usePlaces.ts
-└── types/
-    └── index.ts                ← shared TypeScript types matching API response shapes
-```
-
-## 11. Out of Scope for v1
-
-| Feature | Why deferred |
-|---------|-------------|
-| Hotel-anchored clustering | User provides hotel address or picks it on a map in the wizard; clustering uses the hotel coordinates as the starting point for each day so stops are optimized around where they're sleeping. Affects Section 7 (clustering init point changes from city centroid to hotel lat/lng). |
-| Multi-city trips | Adds routing complexity between cities; single-city is already rich enough for v1 |
-| Editable / draggable plan | Significant UI complexity; view-only is the right v1 scope |
-| Multi-user / shared trips | Requires real-time sync or conflict resolution; single owner keeps it simple |
-| In-app routing between stops | v1 delegates navigation to Google Maps export |
-| City-level place caching | Repeated searches re-fetch from Google Places; caching + freshness logic is a future optimization |
-| Notifications / reminders | Out of scope entirely for this project |
-| Mobile app | Web only |
-
----
-
-## Architecture decisions (consolidated from BLUEPRINT.md)
-
-1. **Places come from Google Places — Claude only curates.** Claude never invents places. It only selects, orders, and reasons about the real places it was given.
-
-2. **Clustering is deterministic code, not the LLM.** K-means in `utils/clustering.ts`. Same input always produces the same clusters. The LLM handles judgment (which places are best), not math (how to group them).
-
-3. **Zustand (client state) + TanStack Query (server state), no Redux.** Zustand: wizard form, active day, selected stop. TanStack Query: API data, loading, errors. Single-component state: `useState`.
-
-4. **`trip_stops` is the single source of truth.** The LLM response maps directly to rows — no raw response copy stored in the DB alongside them.
-
-5. **Build in vertical slices.** Each session touches DB + backend + frontend together and produces something demoable. The AI pipeline is the highest risk — it gets proven first (Session 1).
+- Exact request/response field names for `POST /api/places/generate` (v1) — proposed above, not yet locked.
+- v2's "avoid duplicate places across repeated searches" — pagination token vs. varying query text.
+- v5's "ask Google again if not enough places" retry logic — in scope for v5 itself, or a fast-follow?

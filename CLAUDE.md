@@ -7,9 +7,9 @@ Read this file completely at the start of every session before doing anything el
 
 ## 1. What this project is
 
-**TripFlow** — an AI-assisted vacation planner. The user provides a city, travel dates, and preferences. The app fetches real places from Google Places, groups them into days by geographic proximity (deterministic algorithm), and uses Claude to select, order, and explain the best stops for each day.
+**TripFlow** — an AI-assisted vacation planner, built as a sequence of versions (v0–v9, with a speculative v10), each a complete working slice — backend and frontend together. The app fetches real places from Google Places, groups them into days by geographic proximity (deterministic algorithm, from v3), and — from v5 onward — uses Claude to curate and explain the best stops for the whole trip before clustering ever runs.
 
-**Full spec lives in `BLUE_PRINT.md`** — all schema details, API contracts, UI flows, session plans, and architectural decisions are there. Read it when you need specifics. CLAUDE.md is the workflow guide; BLUE_PRINT.md is the source of truth for what we're building.
+**Full spec lives in `BLUE_PRINT.md`** — the versioned build plan, schema, and API contract are there. CLAUDE.md is the workflow guide; BLUE_PRINT.md is the source of truth for what we're building and in what order.
 
 ---
 
@@ -17,13 +17,13 @@ Read this file completely at the start of every session before doing anything el
 
 ```
 TripFlow/
-├── CLAUDE.md              ← this file (workflow guide)
-├── BLUE_PRINT.md                ← full project spec (read this for decisions)
-├── LEARNINGS.md           ← append-only log, one entry per session
-├── session-notes/         ← one folder per session, one file per completed step
-│   └── session-0/
+├── CLAUDE.md               ← this file (workflow guide)
+├── BLUE_PRINT.md           ← full versioned spec (read this for decisions)
+├── FUTURE_SCOPE.md         ← things genuinely out of scope
+├── LEARNINGS.md            ← append-only log, one entry per session
+├── session-notes/          ← one folder per session, one file per completed step
+│   └── session-1/          ← Session N ships version vN (Session 1 → v1, Session 2 → v2, ...)
 │       ├── step-1.md
-│       ├── step-2.md
 │       └── ...
 ├── .claude/
 │   └── skills/
@@ -41,7 +41,6 @@ TripFlow/
 │   │   │   ├── routes/
 │   │   │   ├── controllers/
 │   │   │   └── services/
-│   │   ├── middleware/
 │   │   ├── seeds/
 │   │   ├── types/
 │   │   └── utils/
@@ -74,26 +73,33 @@ npm run seed --prefix backend
 npm run typecheck --prefix backend
 npm run typecheck --prefix frontend
 
-# Tests
+# Tests (introduced at v3, when clustering.ts is the first pure-function piece worth testing)
 npm test --prefix backend
 npm test --prefix frontend
-npm test --prefix backend -- --testPathPattern=clustering   # single file
+npm test --prefix backend -- --testPathPatterns=clustering   # single file — Jest 30 flag name
 ```
 
 ---
 
-## 4. Session build sequence
+## 4. Version build sequence
 
-| Session | Name | Goal |
-|---------|------|------|
-| 0 | Scaffold + Toolchain | Scaffold backend + frontend, connect Postgres, prove data flows DB → API → screen |
-| 1 | Backend AI Pipeline | Google Places → clustering → Claude → saves to DB. Verified via curl/Postman, no frontend yet |
-| 2 | Frontend Wizard + Plan Display | 3-step wizard + plain plan list. Full pipeline visible in browser for first time |
-| 3 | Persistence + Auth | Register/login, save/load trips, trips list screen |
-| 4 | Map + Export | Map layout, day timeline, stop detail panel, Google Maps export link |
-| 5 | Polish | Loading states, error handling, edge cases, UI refinement |
+One version per session. Each version must end with something running in a browser — no version ships backend-only work with nothing visible.
 
-Each session has a `/plan` at the start. See `BLUE_PRINT.md` Section 9 for the detailed breakdown of each session.
+| Session | Version | Goal |
+|---------|---------|------|
+| 0 | v0 | Scaffold + toolchain: DB ↔ backend ↔ frontend proven, one seeded place |
+| 1 | v1 | City input + Generate button + real Google Places on a map. No dates, no AI. |
+| 2 | v2 | Date range + day timeline; trip persisted; places randomly split across days |
+| 3 | v3 | Real K-means clustering replaces the random split |
+| 4 | v4 | Preferences wizard drives the Google Places search |
+| 5 | v5 | Claude curates the whole pool before clustering runs |
+| 6 | v6 | Claude adds time estimates + reasoning; stop list + detail panel in the UI |
+| 7 | v7 | Auth, trips dashboard, Google Maps export |
+| 8 | v8 | Opening-hours awareness (drop/reassign stops by day) |
+| 9 | v9 | Hotel-anchored clustering + real stop ordering |
+| 10 *(speculative)* | v10 | `Vacation` wraps multiple single-city `Trip`s — multi-city support with zero changes to v1–v9's logic |
+
+See `BLUE_PRINT.md` Section 3 for the full detail per version.
 
 ---
 
@@ -107,7 +113,7 @@ This is the most important section. Every session must follow this flow exactly.
 
 1. Run `/plan` — always, before writing a single line of code.
 2. The plan must include:
-   - The user-facing outcome: what the user can see or do in the browser by the end
+   - The user-facing outcome: what the user can see or do in the browser by the end. **This can never be "nothing visible" — if a version's plan doesn't produce something demoable, the scope is wrong; split it differently.**
    - A full folder tree marking new files vs. existing files
    - A numbered list of steps (these become the step-by-step guide for the session)
 3. Wait for the user to approve the plan before starting Step 1.
@@ -120,10 +126,13 @@ This is the most important section. Every session must follow this flow exactly.
 Before implementing any decision — a field name, a library choice, a folder structure, a function signature, a nullable vs. required field, anything where more than one valid option exists — stop and ask the user. Do not build first and ask for corrections after.
 
 **Share your thinking when you ask.**
-Don't just present two options and ask "which do you prefer?" — explain your own preference and why, then ask. Example: "I'd go with X because [reason], but Y is also valid because [reason]. Which do you want?" The user wants to make the final call but also wants to understand your reasoning.
+Don't just present two options and ask "which do you prefer?" — explain your own preference and why, then ask.
 
 **Never silently diverge from BLUE_PRINT.md.**
 If something in BLUE_PRINT.md conflicts with what you're about to build, flag it explicitly and ask how to resolve it. Do not change the approach silently.
+
+**Don't build ahead of the current version.**
+If a piece of a later version's feature would be easy to bolt on early (e.g. opening-hours filtering while building v3's clustering), don't. Each version's scope is deliberately narrow — that's what keeps every version demoable and reviewable on its own.
 
 ---
 
@@ -132,18 +141,10 @@ If something in BLUE_PRINT.md conflicts with what you're about to build, flag it
 Before doing any work on a new step, always print the full step list for the current session with status indicators:
 
 ```
-Session 0 — Steps:
-✅ Step 1: Git init + .gitignore
-✅ Step 2: Backend scaffold
-🔄 Step 3: Environment config   ← we are here
-⏳ Step 4: TypeORM DataSource + entities
-⏳ Step 5: Express app + routes
-⏳ Step 6: Seed
-⏳ Step 7: Frontend scaffold
-⏳ Step 8: Frontend fetch + display
-⏳ Step 9: /log-learning skill
-⏳ Step 10: LEARNINGS.md
-⏳ Step 11: Verify end-to-end
+Session N (v1) — Steps:
+✅ Step 1: ...
+🔄 Step 2: ...   ← we are here
+⏳ Step 3: ...
 ```
 
 ---
@@ -152,36 +153,27 @@ Session 0 — Steps:
 
 After completing a step, do all four of the following, in this order, before touching anything else:
 
-1. **Post the step summary in the chat response first.** The summary must include:
-   - What was built (files created or changed)
-   - Why each decision was made (not what the code does — why those specific choices)
-   - A suggested commit title for the step — short, focused on the main change. This is a suggestion only; do not actually run `git commit` unless the user explicitly asks.
-
-2. **Then write that same step summary** (including the suggested commit title) to `session-notes/session-N/step-N.md`.
-
-3. **Ask the checkpoint question:**
-   > "Is everything clear? Does everything seem correct to you? Ready to move to the next step?"
-
+1. **Post the step summary in the chat response first.** Must include: what was built, why each decision was made, a suggested commit title (suggestion only — never run `git commit` unless explicitly asked).
+2. **Then write that same step summary** to `session-notes/session-N/step-N.md`.
+3. **Ask the checkpoint question:** "Is everything clear? Does everything seem correct to you? Ready to move to the next step?"
 4. **Wait for confirmation** before starting the next step. Do not proceed automatically.
 
 ---
 
 ### 5.5 End of session — script reminders
 
-At the end of every session, remind the user to run these in order:
-
 | Script | When | Why |
 |--------|------|-----|
 | `/code-review` | After the last step of every session | Checks the diff for correctness bugs |
 | `/log-learning` | After `/code-review` passes | Appends a dated entry to `LEARNINGS.md` |
-| `/security-review` | Before Session 5 (final submission) | Checks for injection, XSS, exposed credentials |
-| `/test-ai-pipeline` | After any change to the AI pipeline (Sessions 1, 2) | Re-runs the pipeline against a fixed test input to catch regressions |
+| `/security-review` | Before v9 (final submission) | Checks for injection, XSS, exposed credentials |
+| `/test-ai-pipeline` | After any change to the AI pipeline (v5 onward) | Re-runs the pipeline against a fixed test input |
 
 ---
 
 ### 5.6 Mid-session reminders
 
-Remind the user to run `/test-ai-pipeline` whenever a file in any of these locations changes:
+Remind the user to run `/test-ai-pipeline` whenever a file in any of these locations changes (relevant from v3 for clustering, v5 for the rest):
 - `backend/src/api/services/placesService.ts`
 - `backend/src/api/services/claudeService.ts`
 - `backend/src/api/services/tripGenerationService.ts`
@@ -192,69 +184,47 @@ Remind the user to run `/test-ai-pipeline` whenever a file in any of these locat
 ## 6. Code style
 
 ### Comments
-Write comments freely when the **why** is non-obvious — a hidden constraint, a subtle invariant, a workaround, a tricky algorithm step, or anything that would make a reader stop and wonder "why is this done this way?"
-
-Place comments on the line directly above the code they explain. For functions or blocks that have non-obvious behavior, write a short comment above the function explaining the key thing to know.
-
-Do not comment what the code does — well-named identifiers handle that. Comments explain intent and reasoning, not mechanics.
+Write comments freely when the **why** is non-obvious — a hidden constraint, a subtle invariant, a workaround, a tricky algorithm step, or anything that would make a reader stop and wonder "why is this done this way?" Place comments on the line directly above the code they explain. Do not comment what the code does — well-named identifiers handle that.
 
 ### TypeScript
 - Always use explicit return types on exported functions
 - Prefer `interface` over `type` for object shapes
-- Use `!` (non-null assertion) only when the value is guaranteed by the surrounding logic — add a comment explaining why if it isn't obvious
-- TypeORM `@Column()` decorators must always specify an explicit column type (e.g. `@Column('varchar')`, `@Column('uuid')`, `@Column('int')`), never a bare `@Column()`. The backend runs on `tsx`, which uses esbuild — esbuild doesn't reliably emit the decorator metadata TypeORM needs to infer a column type from the TS property type, and a bare `@Column()` crashes the app at startup with `ColumnTypeUndefinedError`.
+- Use `!` (non-null assertion) only when the value is guaranteed by the surrounding logic — comment why if it isn't obvious
+- TypeORM `@Column()` decorators must always specify an explicit column type (`@Column('varchar')`, `@Column('uuid')`, `@Column('int')`, etc.), never a bare `@Column()` — `tsx`/esbuild doesn't reliably emit the decorator metadata TypeORM needs to infer it, and a bare `@Column()` crashes at startup with `ColumnTypeUndefinedError`.
+- `tsconfig.json` uses `"module"`/`"moduleResolution": "NodeNext"` with `"isolatedModules": true` — a type used only in a decorated property's signature (e.g. `TripPreferences` on `Trip.preferences`) must be imported with `import type`, not a plain `import`, or `tsc` fails with TS1272.
 
 ### Naming
 - Files: `camelCase.ts` for utilities, `PascalCase.ts` for entities and React components
-- Database columns: `snake_case` (TypeORM maps these automatically with `@Column()` naming)
+- Database columns: `snake_case` (TypeORM maps these automatically)
 - API response fields: `camelCase`
 
 ---
 
 ## 7. Architecture decisions (locked)
 
-These are fixed. If a genuine technical conflict forces a change, flag it and discuss — do not silently diverge.
+See `BLUE_PRINT.md` Section 7 for the full list with version tags. Summary:
 
-**1. Places come from Google Places — Claude only curates.**
-Claude never invents places. It selects, orders, and reasons about the real places it was given. This makes hallucinated venues structurally impossible.
-
-**2. Clustering is deterministic code, not the LLM.**
-K-means in `backend/src/utils/clustering.ts`. Same input always produces the same output. See BLUE_PRINT.md Section 7 for the algorithm details.
-Principle: **deterministic where correctness matters, LLM where judgment and language matter.**
-
-**3. Zustand (client state) + TanStack Query (server state). No Redux.**
-- Zustand: wizard form fields, active day, selected stop ID, UI flags
-- TanStack Query: all API data (places, trips, generated plans) — caching, loading, errors included
-- `useState`: single-component local state only
-
-**4. `trip_stops` is the single source of truth for the generated plan.**
-The LLM response maps directly to `trip_stops` rows — no raw response copy stored in the DB. If raw output is needed for debugging, log it to the console at that moment.
-
-**5. Start date and end date are required before generating a plan.**
-The actual calendar date of each stop determines the day of week, which determines which places are open. A plan cannot be generated without knowing the travel dates.
-
-**6. Opening hours are always in local city time.**
-Google Places returns hours in the local time of the place's location. No timezone conversion is ever needed. Do not add timezone fields to the schema.
+1. **Places come from Google Places — Claude only curates (from v5).**
+2. **Clustering is deterministic code, not the LLM (from v3).**
+3. **Zustand (from v4) + TanStack Query (from v1). No Redux.**
+4. **`trip_stops` is the single source of truth** once it exists (v2+).
+5. **Build in vertical slices — every version ends with something running in a browser.**
+6. **Opening hours are always in local city time (from v8).** No timezone conversion, no timezone fields.
 
 ---
 
 ## 8. session-notes structure
 
-One folder per session, one file per completed step. Only write a step file after the user has confirmed the step is done.
+One folder per session, one file per completed step — unchanged mechanism from the original workflow. Session N's folder documents the work that shipped version vN.
 
 ```
 session-notes/
-├── session-0/
-│   ├── step-1.md    ← written after user confirms step 1 is done
-│   ├── step-2.md
+├── session-0/   ← shipped v0
+│   ├── step-1.md
 │   └── ...
-├── session-1/
+├── session-1/   ← shipped v1
 │   └── ...
 ```
-
-Each step file contains:
-- What was built
-- Why each decision was made
 
 Never write a step file speculatively or mid-step.
 
@@ -264,17 +234,11 @@ Never write a step file speculatively or mid-step.
 
 | Skill | When to use |
 |-------|-------------|
-| `/log-learning` | End of every session — appends a dated entry to `LEARNINGS.md` in two sections: Domain/Stack and Claude Code Usage |
-| `/test-ai-pipeline` | After any change to the AI pipeline files (see Section 5.6) — re-runs the full pipeline against a fixed test input |
+| `/log-learning` | End of every session — appends a dated entry to `LEARNINGS.md` |
+| `/test-ai-pipeline` | After any change to the AI pipeline files (v3 for clustering, v5+ for the rest) |
 
 ---
 
-## 10. Out of scope for v1
+## 10. Out of scope
 
-- Multi-user / shared trips
-- Editable / draggable plan
-- In-app routing between stops (TSP optimization)
-- City-level place caching
-- Hotel-anchored clustering (future version — see BLUE_PRINT.md Section 11)
-- Multi-city trips
-- Mobile app
+See `FUTURE_SCOPE.md` — editable/draggable plans, multi-user/shared trips, city-level place caching, notifications, mobile app. Everything else discussed for this project has a version number in `BLUE_PRINT.md` (including multi-city trips, now speculative v10).
