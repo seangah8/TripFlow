@@ -1,0 +1,20 @@
+.trip-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.trip-page__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.trip-page__error {
+  color: crimson;
+}
+
+.trip-page__map {
+  flex: 1;
+}

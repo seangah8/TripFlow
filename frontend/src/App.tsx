@@ -1,6 +1,9 @@
-// Placeholder — CityForm + PlacesMap get composed in here in Step 9.
-function App() {
-  return <h1>TripFlow</h1>
+import type { JSX } from 'react';
+import { TripPage } from './pages/TripPage';
+
+
+function App(): JSX.Element {
+  return <TripPage />
 }
 
 export default App
