@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import { getPlacesByCity } from '../services/placesService';
 
 export async function getPlaces(req: Request, res: Response): Promise<void> {
-  const city = req.query.city as string | undefined;
-  if (!city) {
+  const { city } = req.query;
+  if (typeof city !== 'string' || !city) {
     res.status(400).json({ error: 'city query parameter is required' });
     return;
   }

@@ -2,6 +2,8 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 't
 import { Trip } from './Trip';
 import { Place } from './Place';
 
+// TypeORM populates these fields at runtime (not via constructor), so the
+// `!` assertions below are safe despite strict property initialization.
 @Entity('trip_stops')
 export class TripStop {
   @PrimaryGeneratedColumn('uuid')
