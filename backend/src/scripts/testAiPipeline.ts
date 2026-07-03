@@ -35,7 +35,11 @@ async function run(): Promise<void> {
     console.log(`Day (${day.date}) - ${day.stops.length} stop${day.stops.length === 1 ? '' : 's'}`);
     day.stops.forEach((stop) => {
       const rating = stop.place.rating !== null ? stop.place.rating.toFixed(1) : 'n/a';
-      console.log(`  ${stop.order}. ${stop.place.name} (rating ${rating}, category: ${stop.place.category ?? 'n/a'})`);
+      const minutes = stop.estimatedMinutes !== null ? `${stop.estimatedMinutes} min` : 'n/a';
+      console.log(
+        `  ${stop.order}. ${stop.place.name} (rating ${rating}, category: ${stop.place.category ?? 'n/a'}, ~${minutes})`,
+      );
+      console.log(`     reasoning: ${stop.reasoning ?? 'n/a'}`);
     });
     console.log('');
   }
