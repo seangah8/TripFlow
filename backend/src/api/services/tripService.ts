@@ -1,3 +1,4 @@
+import type { QueryDeepPartialEntity } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
@@ -61,6 +62,12 @@ function splitPlacesByDay(places: Place[], days: string[]): Map<string, Place[]>
   return placesByDay;
 }
 
+interface StopDraft {
+  date: string;
+  order: number;
+  place: Place;
+}
+
 export async function generateTrip(city: string, startDate: string, endDate: string): Promise<TripGenerateResponse> {
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
@@ -73,38 +80,45 @@ export async function generateTrip(city: string, startDate: string, endDate: str
     tripRepository.create({ city, startDate, endDate, preferences: null }),
   );
 
-  const tripStopRepository = AppDataSource.getRepository(TripStop);
-  // Built as one flat array (day, order, place) so a single batch insert can
-  // create every stop for the trip, then re-grouped into the response's
-  // per-day shape once TypeORM hands back the saved rows (with ids).
-  const stopPlaces: Place[] = [];
-  const stopEntities: TripStop[] = [];
+  // Each draft carries its own `place` directly, so the response's stop-to-place
+  // pairing never depends on database round-trip ordering — only the generated
+  // id (below) does.
+  const stopDrafts: StopDraft[] = [];
   for (const date of days) {
     const dayPlaces = placesByDay.get(date)!;
     dayPlaces.forEach((place, orderIndex) => {
-      stopPlaces.push(place);
-      stopEntities.push(
-        tripStopRepository.create({
-          tripId: trip.id,
-          placeId: place.id,
-          date,
-          order: orderIndex + 1,
-          estimatedMinutes: null,
-          reasoning: null,
-        }),
-      );
+      stopDrafts.push({ date, order: orderIndex + 1, place });
     });
   }
-  const savedStops = await tripStopRepository.save(stopEntities);
+
+  const tripStopRepository = AppDataSource.getRepository(TripStop);
+  const stopEntities = stopDrafts.map((draft) =>
+    tripStopRepository.create({
+      tripId: trip.id,
+      placeId: draft.place.id,
+      date: draft.date,
+      order: draft.order,
+      estimatedMinutes: null,
+      reasoning: null,
+    }),
+  );
+
+  // insert() issues one real multi-row INSERT (unlike save(), which issues one
+  // INSERT per entity) — Postgres's RETURNING clause preserves the input VALUES
+  // order, so identifiers[i] reliably corresponds to stopEntities[i]/stopDrafts[i].
+  // Cast needed for the same reason as placeService.ts's upsert() call: TypeORM's
+  // QueryDeepPartialEntity recurses into jsonb-typed relations (Place.openingHours)
+  // in a way that doesn't line up with the entity instances created above.
+  const insertResult = await tripStopRepository.insert(stopEntities as QueryDeepPartialEntity<TripStop>[]);
 
   const stopsByDay = new Map<string, TripStopResponse[]>(days.map((date) => [date, []]));
-  savedStops.forEach((stop, index) => {
-    stopsByDay.get(stop.date)!.push({
-      tripStopId: stop.id,
-      order: stop.order,
-      place: stopPlaces[index],
-      estimatedMinutes: stop.estimatedMinutes,
-      reasoning: stop.reasoning,
+  stopDrafts.forEach((draft, index) => {
+    stopsByDay.get(draft.date)!.push({
+      tripStopId: insertResult.identifiers[index]!.id as string,
+      order: draft.order,
+      place: draft.place,
+      estimatedMinutes: null,
+      reasoning: null,
     });
   });
 

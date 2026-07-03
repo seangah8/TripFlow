@@ -76,11 +76,14 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20): Prom
   }
 
   const rows = collected
-    .slice(0, targetCount)
+    // Filter before slicing — otherwise a result missing `location` inside the
+    // first `targetCount` entries silently shrinks the final count instead of
+    // being backfilled by a valid entry already sitting just past the cutoff.
     .filter(
       (googlePlace): googlePlace is GooglePlace & { location: GooglePlaceLocation } =>
         Boolean(googlePlace.location),
     )
+    .slice(0, targetCount)
     .map((googlePlace) => ({
       googlePlaceId: googlePlace.id,
       name: googlePlace.displayName.text,
