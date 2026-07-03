@@ -2,8 +2,35 @@ import { In, type QueryDeepPartialEntity } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Place } from '../../entities/Place';
 import type { GooglePlace, GooglePlaceLocation, GooglePlacesSearchTextResponse } from '../../types/googlePlaces';
+import type { TripPreferences } from '../../types/trip';
+
+type Interest = TripPreferences['interests'][number];
 
 const SEARCH_TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
+
+// One textQuery phrase per interest — Google Places (New) searchText takes free-text queries
+// rather than a list of place types, so an interest becomes a natural-language phrase instead
+// of a structured type filter. Kept in sync with BLUE_PRINT.md Section 5's mapping table.
+const INTEREST_QUERY_PHRASES: Record<Interest, string> = {
+  museums: 'museums and art galleries in {city}',
+  food: 'restaurants, cafes and bakeries in {city}',
+  nature: 'parks and nature attractions in {city}',
+  nightlife: 'bars and nightlife in {city}',
+  shopping: 'shopping and markets in {city}',
+};
+
+// This baseline always runs alongside whichever interests are selected — without it, picking
+// only e.g. "food" would never surface a city's must-see landmarks, since nothing curates the
+// pool yet (that's v5). Also the sole query when no interests are selected, matching the
+// original broad-search behavior exactly.
+const BASELINE_QUERY_PHRASE = 'tourist attractions in {city}';
+
+// Pure and exported for unit testing — no network, no city-specific state beyond string
+// interpolation. Baseline always first so it reads naturally in logs/tests.
+export function buildSearchQueries(city: string, interests: Interest[]): string[] {
+  const phrases = [BASELINE_QUERY_PHRASE, ...interests.map((interest) => INTEREST_QUERY_PHRASES[interest])];
+  return phrases.map((phrase) => phrase.replace('{city}', city));
+}
 
 // Only requesting the fields we actually store — Google bills searchText by
 // which fields are in this mask, so anything unused here (e.g. photos) costs nothing.
@@ -23,7 +50,7 @@ const FIELD_MASK = [
 const PAGE_TOKEN_DELAY_MS = 2000;
 
 async function fetchSearchTextPage(
-  city: string,
+  queryText: string,
   apiKey: string,
   pageToken?: string,
 ): Promise<GooglePlacesSearchTextResponse> {
@@ -35,7 +62,7 @@ async function fetchSearchTextPage(
       'X-Goog-FieldMask': FIELD_MASK,
     },
     body: JSON.stringify({
-      textQuery: `tourist attractions in ${city}`,
+      textQuery: queryText,
       maxResultCount: 20,
       ...(pageToken ? { pageToken } : {}),
     }),
@@ -48,16 +75,10 @@ async function fetchSearchTextPage(
   return (await response.json()) as GooglePlacesSearchTextResponse;
 }
 
-// Broad query, no interest filtering yet — that's v4's preferences wizard.
-// Paginates via nextPageToken until `targetCount` places are collected or
-// Google runs out of pages, so repeat generates for the same city (v2's day
-// timeline needs more than ~20 places per trip) don't just return the same set.
-export async function fetchAndUpsertPlaces(city: string, targetCount = 20): Promise<Place[]> {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) {
-    throw new Error('GOOGLE_PLACES_API_KEY is not set');
-  }
-
+// Paginates a single query via nextPageToken until `targetCount` places are collected or
+// Google runs out of pages, so repeat generates for the same city (v2's day timeline needs
+// more than ~20 places per trip) don't just return the same set.
+async function collectPlacesForQuery(queryText: string, apiKey: string, targetCount: number): Promise<GooglePlace[]> {
   const collected: GooglePlace[] = [];
   let pageToken: string | undefined;
 
@@ -66,16 +87,42 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20): Prom
       await new Promise((resolve) => setTimeout(resolve, PAGE_TOKEN_DELAY_MS));
     }
 
-    const { places: pagePlaces = [], nextPageToken } = await fetchSearchTextPage(city, apiKey, pageToken);
+    const { places: pagePlaces = [], nextPageToken } = await fetchSearchTextPage(queryText, apiKey, pageToken);
     collected.push(...pagePlaces);
     pageToken = nextPageToken;
   } while (pageToken && collected.length < targetCount);
+
+  return collected;
+}
+
+// Runs one query per selected interest plus the always-on baseline (see
+// BASELINE_QUERY_PHRASE), splitting `targetCount` evenly across however many queries are
+// active. With zero interests this collapses to exactly one query at the full target count —
+// identical to v1-v3's single broad search.
+export async function fetchAndUpsertPlaces(city: string, targetCount = 20, interests: Interest[] = []): Promise<Place[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_PLACES_API_KEY is not set');
+  }
+
+  const queries = buildSearchQueries(city, interests);
+  const perQueryTarget = Math.ceil(targetCount / queries.length);
+
+  const collected: GooglePlace[] = [];
+  for (const queryText of queries) {
+    collected.push(...(await collectPlacesForQuery(queryText, apiKey, perQueryTarget)));
+  }
 
   if (collected.length === 0) {
     return [];
   }
 
-  const rows = collected
+  // Multiple queries can surface the same place (e.g. a landmark that's both the baseline
+  // result and a "museums" result) — dedupe before upserting, since a single multi-row upsert
+  // can't affect the same row twice in one statement.
+  const deduped = [...new Map(collected.map((googlePlace) => [googlePlace.id, googlePlace])).values()];
+
+  const rows = deduped
     // Filter before slicing — otherwise a result missing `location` inside the
     // first `targetCount` entries silently shrinks the final count instead of
     // being backfilled by a valid entry already sitting just past the cutoff.
