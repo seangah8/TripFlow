@@ -80,7 +80,7 @@ Unchanged from the original blueprint: backend + frontend scaffolded, TypeORM co
 
 **Backend:**
 - `utils/clustering.ts` — K-means, same design as before it was discarded this session: N centroids seeded by slicing the longitude range of all fetched places into N equal parts (deterministic, no RNG), up to 10 iterations, merge any cluster under 3 places into its nearest neighbor, cap each day at 15 places (highest-rated first) if a cluster somehow exceeds that. Pure function, no DB dependency, fully unit-testable — this is also where Jest gets (re-)introduced, since this is the first pure algorithmic piece worth testing in isolation.
-- `tripGenerationService.ts` swaps the random day-split for `clusterPlacesByDay(places, totalDays)`.
+- `tripService.ts` swaps the random day-split for `clusterPlacesByDay(places, totalDays)`.
 
 **Frontend:** unchanged.
 
@@ -105,7 +105,7 @@ Unchanged from the original blueprint: backend + frontend scaffolded, TypeORM co
 
 **Backend:**
 - `claudeService.ts` — one call per trip generation, sees the *entire* curated pool + preferences + trip length, returns the subset of `googlePlaceId`s it judges legit/interesting/on-theme. Model: `claude-sonnet-5`, via Anthropic's structured outputs (`output_config.format`) for a guaranteed-valid response shape.
-- `tripGenerationService.ts`: fetch → **Claude filters** → cluster (this ordering — curate before cluster, not after — is the one piece of design already validated earlier this session and carried forward unchanged).
+- `tripService.ts`: fetch → **Claude filters** → cluster (this ordering — curate before cluster, not after — is the one piece of design already validated earlier this session and carried forward unchanged).
 - Stretch goal for this version, not a hard requirement: if Claude's filtered pool is too small to cover `totalDays` well, re-query Google for more candidates before giving up.
 
 **Frontend:** unchanged.

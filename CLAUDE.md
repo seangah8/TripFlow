@@ -176,7 +176,7 @@ After completing a step, do all four of the following, in this order, before tou
 Remind the user to run `/test-ai-pipeline` whenever a file in any of these locations changes (relevant from v3 for clustering, v5 for the rest):
 - `backend/src/api/services/placesService.ts`
 - `backend/src/api/services/claudeService.ts`
-- `backend/src/api/services/tripGenerationService.ts`
+- `backend/src/api/services/tripService.ts`
 - `backend/src/utils/clustering.ts`
 
 ---
