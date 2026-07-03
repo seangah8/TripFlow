@@ -14,7 +14,9 @@ export interface GooglePlaceLocation {
 export interface GooglePlace {
   id: string;
   displayName: GooglePlaceText;
-  location: GooglePlaceLocation;
+  // Requesting this field doesn't guarantee Google populates it for every
+  // result — placesService.ts filters out entries missing it before mapping.
+  location?: GooglePlaceLocation;
   rating?: number;
   // Stored as-is in the `openingHours` jsonb column — not parsed until v8.
   regularOpeningHours?: Record<string, unknown>;

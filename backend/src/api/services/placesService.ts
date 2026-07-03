@@ -1,8 +1,7 @@
-import { In } from 'typeorm';
-import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { In, type QueryDeepPartialEntity } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Place } from '../../entities/Place';
-import type { GooglePlacesSearchTextResponse } from '../../types/googlePlaces';
+import type { GooglePlace, GooglePlaceLocation, GooglePlacesSearchTextResponse } from '../../types/googlePlaces';
 
 const SEARCH_TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
 
@@ -32,7 +31,6 @@ export async function fetchAndUpsertPlaces(city: string): Promise<Place[]> {
       'X-Goog-FieldMask': FIELD_MASK,
     },
     body: JSON.stringify({
-      // what we ask google search on the map.
       textQuery: `tourist attractions in ${city}`,
       maxResultCount: 20,
     }),
@@ -47,16 +45,21 @@ export async function fetchAndUpsertPlaces(city: string): Promise<Place[]> {
     return [];
   }
 
-  const rows = googlePlaces.map((googlePlace) => ({
-    googlePlaceId: googlePlace.id,
-    name: googlePlace.displayName.text,
-    lat: googlePlace.location.latitude,
-    lng: googlePlace.location.longitude,
-    city,
-    rating: googlePlace.rating ?? null,
-    openingHours: googlePlace.regularOpeningHours ?? null,
-    category: googlePlace.primaryTypeDisplayName?.text ?? null,
-  }));
+  const rows = googlePlaces
+    .filter(
+      (googlePlace): googlePlace is GooglePlace & { location: GooglePlaceLocation } =>
+        Boolean(googlePlace.location),
+    )
+    .map((googlePlace) => ({
+      googlePlaceId: googlePlace.id,
+      name: googlePlace.displayName.text,
+      lat: googlePlace.location.latitude,
+      lng: googlePlace.location.longitude,
+      city,
+      rating: googlePlace.rating ?? null,
+      openingHours: googlePlace.regularOpeningHours ?? null,
+      category: googlePlace.primaryTypeDisplayName?.text ?? null,
+    }));
 
   const placeRepository = AppDataSource.getRepository(Place);
   // TypeORM's QueryDeepPartialEntity recurses into object-typed columns; for a
