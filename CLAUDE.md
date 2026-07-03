@@ -26,7 +26,9 @@ TripFlow/
 │       └── ...
 ├── .claude/
 │   └── skills/
-│       └── test-ai-pipeline/
+│       ├── test-ai-pipeline/
+│       │   └── SKILL.md
+│       └── sync-blueprint/
 │           └── SKILL.md
 ├── backend/               ← Node.js + Express + TypeORM
 │   ├── src/
@@ -39,6 +41,7 @@ TripFlow/
 │   │   │   ├── controllers/
 │   │   │   └── services/
 │   │   ├── seeds/
+│   │   ├── tests/        ← all backend tests live here (flat, not colocated with src)
 │   │   ├── types/
 │   │   └── utils/
 │   ├── .env               ← gitignored, real credentials
@@ -206,7 +209,7 @@ See `BLUE_PRINT.md` Section 7 for the full list with version tags. Summary:
 
 1. **Places come from Google Places — Claude only curates (from v5).**
 2. **Clustering is deterministic code, not the LLM (from v3).**
-3. **Zustand (from v4) + TanStack Query (from v1). No Redux.**
+3. **Zustand (introduced once genuinely needed, not tied to a specific version — see BLUE_PRINT.md Section 6) + TanStack Query (from v1). No Redux.**
 4. **`trip_stops` is the single source of truth** once it exists (v2+).
 5. **Build in vertical slices — every version ends with something running in a browser.**
 6. **Opening hours are always in local city time (from v8).** No timezone conversion, no timezone fields.

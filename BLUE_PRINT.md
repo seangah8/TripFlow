@@ -24,7 +24,7 @@
 | **v1** | Pick a city, generate button, real Google Places fetch, markers on a map | Dates, days, clustering, preferences, AI, persistence of a "trip" |
 | **v2** | Date range (max 14 days), day timeline UI, trip persisted to DB, places split across days **randomly** | Real geography, preferences, AI |
 | **v3** | Real K-means clustering replaces the random day-split | Preferences, AI |
-| **v4** | Preferences wizard (interests/vibe/group/budget) drives the Google Places search itself | AI curation |
+| **v4** | Preferences wizard (interests/vibe/group/budget) drives the Google Places search itself; home page + "Add Trip" modal wizard with real routing (`react-router-dom`, pulled forward from v7); `GET /api/trips/:id` (pulled forward from v7, no auth) | AI curation, Zustand (deferred — v4's wizard state didn't need it), trip list/dashboard |
 | **v5** | Claude sits between the (now larger) Google fetch and clustering, filtering to what's actually worth including | Per-stop time estimates, reasoning, opening hours, ordering |
 | **v6** | Claude also outputs `estimatedMinutes` + `reasoning` per stop; frontend gets the stop-list column + click-to-detail panel | Auth, opening hours, ordering |
 | **v7** | Login/register, trips dashboard (cards + "new trip"), `owner` on trips, "Open in Google Maps" export | Opening hours, ordering |
@@ -88,14 +88,34 @@ Unchanged from the original blueprint: backend + frontend scaffolded, TypeORM co
 
 ### v4 — Preferences drive the search
 
-**User-facing outcome:** A preferences step (interests, vibe/pace, group type, budget) appears before generating. The places Google actually returns now reflect those choices, not a generic "tourist attractions" search.
+**User-facing outcome:** A home page with an "Add Trip" button opens a 3-step modal wizard
+(Destination & Dates → Preferences → Confirm). The places Google actually returns now reflect
+the chosen interests, not a generic "tourist attractions" search. Generating navigates to a real
+`/trips/:tripId` URL that reloads correctly on refresh.
 
 **Backend:**
 - `preferences` (jsonb) added to `Trip`, matching the original blueprint's shape (`{ vibe, interests[], groupType, budget }`).
-- `fetchAndUpsertPlaces` gains an `interests` parameter, mapping to Google place-type filters (Museums → `museum`/`art_gallery`/`tourist_attraction`, Food & Drink → `restaurant`/`cafe`/`bar`/`bakery`, etc. — same mapping table as the original blueprint's Section 5).
+- `fetchAndUpsertPlaces` gains an `interests` parameter. Rather than Google's structured
+  `includedType` place-type filters, each interest maps to a natural-language `textQuery` phrase
+  (e.g. "restaurants, cafes and bakeries in {city}"), reusing the existing searchText pagination
+  path. An always-on baseline query ("tourist attractions in {city}") runs alongside whichever
+  interests are selected, so picking only e.g. "Nightlife" still surfaces a city's must-see
+  landmarks — target place count splits evenly across however many queries are active, run
+  concurrently.
+- `GET /api/trips/:id` pulled forward from v7 (no auth/ownership check yet, matching v2+'s
+  already-ownerless trips) — added specifically so the new `/trips/:tripId` route survives a
+  refresh. `GET /api/trips` (the list/dashboard endpoint) stays v7.
 
 **Frontend:**
-- This is where a real multi-step form shows up for the first time (city+dates → preferences → confirm), so this is also where **Zustand** gets introduced — a `useTripStore` holding the in-progress wizard state across steps, exactly the point where a shared client-state store starts earning its keep.
+- Real routing (`react-router-dom`) introduced here instead of v7: `/` (home page, "Add Trip"
+  button) and `/trips/:tripId` (the trip view). Pulled forward specifically so a generated trip
+  has a real, reloadable URL rather than staying page-state.
+- The 3-step wizard opens as a modal from the home page. **Zustand was not introduced** — the
+  wizard's step/city/dates/preferences state lives in plain `useState` in the modal's container
+  component, prop-drilled one level to its 3 step children (not deep prop-drilling, since they're
+  direct children). Zustand is deferred to whenever something genuinely needs cross-tree shared
+  state instead (the likely first real case is v6's active day / selected stop, shared between
+  sibling map and stop-list components).
 
 ---
 
@@ -132,7 +152,9 @@ Unchanged from the original blueprint: backend + frontend scaffolded, TypeORM co
 **Backend:**
 - `User` entity + `users` table, `POST /api/auth/register`, `POST /api/auth/login` (JWT), auth middleware.
 - `owner` FK on `Trip` — now actually populated (was nullable and unused since v2).
-- `GET /api/trips` (list, scoped to the logged-in user), `GET /api/trips/:id` (reload) — first version these endpoints are actually needed, even though the underlying data has existed since v2.
+- `GET /api/trips` (list, scoped to the logged-in user) — `GET /api/trips/:id` (reload) was
+  pulled forward to v4 already (no auth check yet); this version adds the ownership scoping auth
+  now makes possible, plus the list endpoint the dashboard needs.
 - Google Maps export URL builder (waypoints link) for a given day.
 
 **Frontend:**
@@ -269,7 +291,9 @@ Response (stabilizes by v6):
 }
 ```
 
-### `GET /api/trips` / `GET /api/trips/:id` *(built at v7, data has existed since v2)*
+### `GET /api/trips/:id` *(built at v4, pulled forward from v7 — no auth/ownership check until v7)*
+
+### `GET /api/trips` *(list, built at v7 — data has existed since v2, but scoping to a logged-in user needs auth)*
 
 ### `POST /api/auth/register` / `POST /api/auth/login` *(v7)*
 
@@ -282,7 +306,12 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 
 ### State management (confirmed)
 - **v1–v3:** plain `useState` for form fields; **TanStack Query** for the generate mutation (loading/error/retry).
-- **v4 onward:** **Zustand** (`useTripStore`) added once the multi-step wizard needs state shared across steps. TanStack Query continues to own all server data (places, trips).
+- **v4:** the preferences wizard turned out not to need Zustand — its 3 steps are direct children
+  of one modal component, so plain `useState` in the modal (prop-drilled one level) was simpler
+  and sufficient. TanStack Query continues to own all server data (places, trips).
+- **Zustand** gets introduced whenever something genuinely needs state shared across
+  non-parent/child components instead (the likely first real case is v6's active day / selected
+  stop, shared between sibling map and stop-list components).
 
 ### Map
 **Google Maps JavaScript SDK** (confirmed) — consistent with the Google Places data already driving the app. Requires the Maps JavaScript API enabled on the same Google Cloud project as the Places key; usage-billed beyond Google's free monthly credit.
@@ -292,7 +321,7 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 |---|---|
 | City input + Generate button + Map | v1 |
 | Date range pickers, Day timeline | v2 |
-| Preferences form / wizard steps | v4 |
+| Home page + "Add Trip" modal wizard, real routing (`/`, `/trips/:tripId`) | v4 |
 | Stop list column + Stop detail panel | v6 |
 | Login/register forms, Trips dashboard | v7 |
 
@@ -302,7 +331,7 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 
 1. **Places come from Google Places — Claude only curates (from v5).** Claude never invents places, and it curates from the full pool, not a pre-cut geographic slice.
 2. **Clustering is deterministic code, not the LLM (from v3).** Same input always produces the same output.
-3. **Zustand (from v4) + TanStack Query (from v1). No Redux.**
+3. **Zustand (introduced once genuinely needed — not v4; the v4 wizard's state was simple enough for plain `useState`) + TanStack Query (from v1). No Redux.**
 4. **`trip_stops` is the single source of truth for the generated plan** once it exists (v2+). No raw Claude response stored in the DB.
 5. **Build in vertical slices — for real this time.** Every version ends with something running in a browser. No version ships backend-only work.
 6. **Opening hours are always in local city time (from v8).** No timezone conversion needed, no timezone fields in the schema.
