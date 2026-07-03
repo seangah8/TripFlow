@@ -176,6 +176,8 @@ After completing a step, do all four of the following, in this order, before tou
 | `/security-review` | Before v9 (final submission) | Checks for injection, XSS, exposed credentials |
 | `/test-ai-pipeline` | After any change to the AI pipeline (v5 onward) | Re-runs the pipeline against a fixed test input |
 
+**Cost note:** When running `/code-review`, do not use Opus-tier models for the finder/verifier subagents — use the default model. This project runs on a limited API budget, and a full `/code-review` pass spawns many parallel subagents (8 finders + up to 10 verifiers); Opus-tier across that many calls burns through it fast for no meaningful gain at this codebase's size.
+
 ---
 
 ### 5.6 Mid-session reminders
