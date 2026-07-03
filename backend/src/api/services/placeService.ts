@@ -32,6 +32,11 @@ export function buildSearchQueries(city: string, interests: Interest[]): string[
   return phrases.map((phrase) => phrase.replace('{city}', city));
 }
 
+// Extracted purely so the even-split-across-queries math is unit-testable on its own.
+export function perQueryTarget(targetCount: number, queryCount: number): number {
+  return Math.ceil(targetCount / queryCount);
+}
+
 // Only requesting the fields we actually store — Google bills searchText by
 // which fields are in this mask, so anything unused here (e.g. photos) costs nothing.
 // `nextPageToken` must be listed explicitly too, like any other response field.
@@ -106,11 +111,11 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20, inter
   }
 
   const queries = buildSearchQueries(city, interests);
-  const perQueryTarget = Math.ceil(targetCount / queries.length);
+  const targetPerQuery = perQueryTarget(targetCount, queries.length);
 
   const collected: GooglePlace[] = [];
   for (const queryText of queries) {
-    collected.push(...(await collectPlacesForQuery(queryText, apiKey, perQueryTarget)));
+    collected.push(...(await collectPlacesForQuery(queryText, apiKey, targetPerQuery)));
   }
 
   if (collected.length === 0) {

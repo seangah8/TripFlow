@@ -1,5 +1,5 @@
 import type { Place } from '../entities/Place';
-import { clusterPlacesByDay } from './clustering';
+import { clusterPlacesByDay } from '../utils/clustering';
 
 function makePlace(id: string, lat: number, lng: number, rating: number | null = null): Place {
   return {
