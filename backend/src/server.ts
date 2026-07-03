@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import { AppDataSource } from './config/data-source';
 import healthRoutes from './api/routes/healthRoutes';
-import placeRoutes from './api/routes/placeRoutes';
 import tripRoutes from './api/routes/tripRoutes';
 
 const app = express();
@@ -15,7 +14,6 @@ app.use(cors({ origin: process.env.CORS_ORIGIN }));
 app.use(express.json());
 
 app.use('/api', healthRoutes);
-app.use('/api', placeRoutes);
 app.use('/api', tripRoutes);
 
 AppDataSource.initialize()
