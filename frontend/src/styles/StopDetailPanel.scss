@@ -1,0 +1,41 @@
+.stop-detail-panel {
+  padding: 1rem;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.stop-detail-panel__back {
+  display: block;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-bottom: 0.75rem;
+  color: #2563eb;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.stop-detail-panel__name {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.stop-detail-panel__category {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0;
+}
+
+.stop-detail-panel__minutes {
+  font-weight: 600;
+  margin: 0.75rem 0 0;
+}
+
+.stop-detail-panel__reasoning {
+  margin: 0.5rem 0 0;
+  line-height: 1.4;
+}

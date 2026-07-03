@@ -15,6 +15,18 @@
   color: crimson;
 }
 
+.trip-page__content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.trip-page__side-panel {
+  flex: 0 0 320px;
+  border-right: 1px solid #ddd;
+  min-height: 0;
+}
+
 .trip-page__map {
   flex: 1;
 }
