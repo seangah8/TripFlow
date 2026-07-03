@@ -131,6 +131,9 @@ If something in BLUE_PRINT.md conflicts with what you're about to build, flag it
 **Don't build ahead of the current version.**
 If a piece of a later version's feature would be easy to bolt on early (e.g. opening-hours filtering while building v3's clustering), don't. Each version's scope is deliberately narrow — that's what keeps every version demoable and reviewable on its own.
 
+**Don't launch or drive the app yourself to verify UI/browser behavior.**
+Don't start dev servers to click through the app, use the `run` skill, or drive a browser to check that a frontend change actually works. Backend behavior is fine to verify directly (curl, running the server, hitting endpoints, checking DB state) since that's non-interactive and cheap to reason about. For anything that requires a browser — a new page, a wizard flow, a map rendering, a modal — rely on `npm run typecheck`/`npm test` plus code review, then explicitly ask the user to check the specific thing in their own browser and report back what they saw. Say plainly that browser verification is outstanding rather than claiming a UI change works.
+
 ---
 
 ### 5.3 At the start of each step — show the map

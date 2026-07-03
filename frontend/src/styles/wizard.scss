@@ -89,3 +89,19 @@
   justify-content: space-between;
   margin-top: 0.5rem;
 }
+
+.wizard-step__summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0;
+
+  dt {
+    font-weight: 600;
+    color: #666;
+  }
+
+  dd {
+    margin: 0;
+  }
+}

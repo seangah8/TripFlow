@@ -115,7 +115,13 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20, inter
 
   const collected: GooglePlace[] = [];
   for (const queryText of queries) {
-    collected.push(...(await collectPlacesForQuery(queryText, apiKey, targetPerQuery)));
+    const queryResults = await collectPlacesForQuery(queryText, apiKey, targetPerQuery);
+    // collectPlacesForQuery only stops paginating once it has *at least* targetPerQuery —
+    // a single page can return up to 20, well past that floor — so cap each query's own
+    // contribution here. Without this, the baseline query (always first) fills most of the
+    // final list before later interest queries get a fair share, since the final slice below
+    // just keeps whichever results happen to be at the front.
+    collected.push(...queryResults.slice(0, targetPerQuery));
   }
 
   if (collected.length === 0) {

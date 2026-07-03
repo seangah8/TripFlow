@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { JSX } from 'react';
 import { DestinationStep } from './DestinationStep';
 import { PreferencesStep } from './PreferencesStep';
+import { ConfirmStep } from './ConfirmStep';
 import type { TripPreferences } from '../../types/trip';
 import '../../styles/wizard.scss';
 
@@ -56,17 +57,14 @@ export function TripWizardModal({ onClose }: TripWizardModalProps): JSX.Element 
         )}
 
         {step === 3 && (
-          // Placeholder — Step 12 replaces this with the real <ConfirmStep>.
-          <div className="wizard-step">
-            <h2>Confirm (placeholder)</h2>
-            <p>
-              {city}, {startDate} – {endDate}
-            </p>
-            <p>{JSON.stringify(preferences)}</p>
-            <button type="button" onClick={() => setStep(2)}>
-              Back
-            </button>
-          </div>
+          <ConfirmStep
+            city={city}
+            startDate={startDate}
+            endDate={endDate}
+            preferences={preferences}
+            onBack={() => setStep(2)}
+            onClose={onClose}
+          />
         )}
       </div>
     </div>
