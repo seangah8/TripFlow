@@ -4,7 +4,7 @@ import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
 import type { Place } from '../../entities/Place';
 import { fetchAndUpsertPlaces } from './placeService';
-import { curatePlaces } from './claudeService';
+import { curatePlaces, ClaudeCurationError } from './claudeService';
 import { clusterPlacesByDay } from '../../utils/clustering';
 import type { TripDayResponse, TripGenerateResponse, TripPreferences, TripStopResponse } from '../../types/trip';
 
@@ -87,7 +87,7 @@ export async function generateTrip(
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
 
-  let curatedPlaces: Place[] = [];
+  let bestCuratedPlaces: Place[] = [];
   let previousCandidateCount = -1;
 
   for (let attempt = 0; attempt < MAX_CURATION_ATTEMPTS; attempt++) {
@@ -96,8 +96,8 @@ export async function generateTrip(
 
     if (attempt > 0 && candidatePlaces.length <= previousCandidateCount) {
       // Google has nothing further to offer for this city/query set — re-running curation
-      // on an unchanged pool won't help, so stop escalating and keep the previous attempt's
-      // curated result.
+      // on an unchanged pool won't help, so stop escalating and keep the best result found
+      // so far.
       console.warn(
         `Google returned no additional candidates for ${city} on retry ${attempt}; stopping retries early.`,
       );
@@ -105,25 +105,51 @@ export async function generateTrip(
     }
     previousCandidateCount = candidatePlaces.length;
 
-    // Any failure here (network, refusal, malformed output) throws and propagates
-    // immediately — this loop only reacts to a *successful* call whose output was too
-    // small; it never retries an actual Claude/API failure.
-    curatedPlaces = await curatePlaces(candidatePlaces, preferences, days.length);
+    let curated: Place[];
+    try {
+      curated = await curatePlaces(candidatePlaces, preferences, days.length);
+    } catch (error) {
+      // A retry's failure (network, refusal, malformed output) shouldn't discard an
+      // already-usable earlier result and fail the whole request — keep the best result
+      // found so far and stop retrying. With nothing usable yet, there's no fallback, so
+      // it still propagates (matches the decision that a curation failure fails the whole
+      // request when there's no curated result to serve instead).
+      if (bestCuratedPlaces.length === 0) {
+        throw error;
+      }
+      console.warn(`Curation retry ${attempt} for ${city} failed; keeping the best result found so far.`, error);
+      break;
+    }
 
-    if (curatedPlaces.length >= targetPlaceCount) {
+    // Curation is non-deterministic and each attempt's candidate pool differs, so a later
+    // attempt can return fewer places than an earlier one — keep the largest result seen
+    // across attempts, not just the last one.
+    if (curated.length > bestCuratedPlaces.length) {
+      bestCuratedPlaces = curated;
+    }
+
+    if (bestCuratedPlaces.length >= targetPlaceCount) {
       break;
     }
     if (attempt === MAX_CURATION_ATTEMPTS - 1) {
       // Proceed anyway rather than throwing — a thinner-than-ideal but real itinerary is a
       // better outcome than a 500, and clustering already tolerates sparse input.
       console.warn(
-        `Curated pool (${curatedPlaces.length}) is below the target (${targetPlaceCount}) for ${city} ` +
+        `Curated pool (${bestCuratedPlaces.length}) is below the target (${targetPlaceCount}) for ${city} ` +
           `after ${MAX_CURATION_ATTEMPTS} attempts; proceeding with what Claude returned.`,
       );
     }
   }
 
-  const placesByDay = clusterPlacesByDay(curatedPlaces, days);
+  if (bestCuratedPlaces.length === 0) {
+    // Every attempt curated down to nothing usable (Claude selected nothing, or every
+    // selected id failed to match a real place) — this is a curation failure, not a
+    // legitimately thin trip, so it fails loudly rather than silently persisting an
+    // empty itinerary.
+    throw new ClaudeCurationError(`Claude curated zero usable places for ${city} after ${MAX_CURATION_ATTEMPTS} attempt(s)`);
+  }
+
+  const placesByDay = clusterPlacesByDay(bestCuratedPlaces, days);
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.save(

@@ -121,12 +121,13 @@ the chosen interests, not a generic "tourist attractions" search. Generating nav
 
 ### v5 — Claude curates
 
-**User-facing outcome:** No new UI. The *quality* of what shows up changes — Google now returns a much larger pool (~90–100 places), and Claude filters that pool down to what's actually worth including before clustering ever runs, instead of every fetched place surviving to the final trip.
+**User-facing outcome:** No new UI. The *quality* of what shows up changes — Claude filters the fetched pool down to what's actually worth including before clustering ever runs, instead of every fetched place surviving to the final trip.
 
 **Backend:**
-- `claudeService.ts` — one call per trip generation, sees the *entire* curated pool + preferences + trip length, returns the subset of `googlePlaceId`s it judges legit/interesting/on-theme. Model: `claude-sonnet-5`, via Anthropic's structured outputs (`output_config.format`) for a guaranteed-valid response shape.
-- `tripService.ts`: fetch → **Claude filters** → cluster (this ordering — curate before cluster, not after — is the one piece of design already validated earlier this session and carried forward unchanged).
-- Stretch goal for this version, not a hard requirement: if Claude's filtered pool is too small to cover `totalDays` well, re-query Google for more candidates before giving up.
+- `claudeService.ts` — one call per trip generation, sees the *entire* candidate pool + preferences + trip length, returns the subset of `googlePlaceId`s it judges legit/interesting/on-theme. Model: `claude-sonnet-5`, via Anthropic's structured outputs (`output_config.format`) for a guaranteed-valid response shape. A Claude call failure (network error, rate limit, refusal, malformed output) fails the whole trip-generation request rather than falling back to the uncurated pool.
+- `tripService.ts`: fetch → **Claude filters** → cluster (this ordering — curate before cluster, not after — is the one piece of design already validated earlier this session and carried forward unchanged). The pre-curation Google fetch pool now scales with trip length (60-place minimum, capped at 100 on the normal path) instead of the old ~20-70 fetch-only target.
+- The retry stretch goal was implemented, not deferred: if the curated pool is below `targetPlaceCount`, the loop re-fetches a larger pool (escalating past the normal 100-place cap) and re-curates, up to 3 total attempts. It keeps the largest curated result seen across attempts (not just the last), and a failed retry falls back to the best result already found rather than failing the whole request.
+- `/test-ai-pipeline` skill built (`.claude/skills/test-ai-pipeline/SKILL.md` + `backend/src/scripts/testAiPipeline.ts`, run via `npm run test:ai-pipeline --prefix backend`) — `CLAUDE.md` referenced this skill since earlier sessions, but it didn't actually exist until now.
 
 **Frontend:** unchanged.
 
@@ -342,4 +343,3 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 
 - Exact request/response field names for `POST /api/places/generate` (v1) — proposed above, not yet locked.
 - v2's "avoid duplicate places across repeated searches" — pagination token vs. varying query text.
-- v5's "ask Google again if not enough places" retry logic — in scope for v5 itself, or a fast-follow?

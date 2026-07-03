@@ -41,6 +41,7 @@ TripFlow/
 │   │   │   ├── controllers/
 │   │   │   └── services/
 │   │   ├── seeds/
+│   │   ├── scripts/      ← standalone scripts (e.g. /test-ai-pipeline's fixed-input runner)
 │   │   ├── tests/        ← all backend tests live here (flat, not colocated with src)
 │   │   ├── types/
 │   │   └── utils/
@@ -68,6 +69,9 @@ npm run dev --prefix frontend    # Vite on port 5173
 
 # Seed the database with one placeholder place
 npm run seed --prefix backend
+
+# Re-run the AI pipeline against a fixed test input (see /test-ai-pipeline)
+npm run test:ai-pipeline --prefix backend
 
 # Type-check only (no emit)
 npm run typecheck --prefix backend
