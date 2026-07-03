@@ -4,12 +4,33 @@ import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
 import type { Place } from '../../entities/Place';
 import { fetchAndUpsertPlaces } from './placeService';
+import { curatePlaces } from './claudeService';
 import { clusterPlacesByDay } from '../../utils/clustering';
 import type { TripDayResponse, TripGenerateResponse, TripPreferences, TripStopResponse } from '../../types/trip';
 
 const MAX_TRIP_DAYS = 14;
 const PLACES_PER_DAY_TARGET = 5;
 const MIN_PLACES_TARGET = 20;
+
+// Pre-curation fetch pool: scales with trip length instead of a flat ~90-100, so short
+// trips don't pay for a maximal Google fetch they don't need. Capped at FETCH_POOL_MAX on
+// the normal path (attempt 0); retries deliberately escalate past that cap (see below),
+// since the whole point of retrying is asking Google for more than the normal ceiling.
+const FETCH_POOL_PER_DAY = 10;
+const FETCH_POOL_MIN = 60;
+const FETCH_POOL_MAX = 100;
+const RETRY_FETCH_INCREMENT = 40;
+
+// 1 initial attempt + 2 retries. Each attempt is a full Google pagination round plus a
+// Claude call, so diminishing returns kick in fast — if two pool enlargements don't help,
+// the city/preference combination genuinely doesn't have enough matching places.
+const MAX_CURATION_ATTEMPTS = 3;
+
+// Pure and exported for unit testing — same pattern as placeService.ts's perQueryTarget.
+export function computeFetchPoolSize(dayCount: number, attempt: number): number {
+  const base = Math.min(Math.max(dayCount * FETCH_POOL_PER_DAY, FETCH_POOL_MIN), FETCH_POOL_MAX);
+  return base + attempt * RETRY_FETCH_INCREMENT;
+}
 
 // Thrown for bad request data — tripController.ts catches this specifically
 // to respond 400 instead of 500.
@@ -66,8 +87,43 @@ export async function generateTrip(
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
 
-  const places = await fetchAndUpsertPlaces(city, targetPlaceCount, preferences.interests);
-  const placesByDay = clusterPlacesByDay(places, days);
+  let curatedPlaces: Place[] = [];
+  let previousCandidateCount = -1;
+
+  for (let attempt = 0; attempt < MAX_CURATION_ATTEMPTS; attempt++) {
+    const fetchPoolSize = computeFetchPoolSize(days.length, attempt);
+    const candidatePlaces = await fetchAndUpsertPlaces(city, fetchPoolSize, preferences.interests);
+
+    if (attempt > 0 && candidatePlaces.length <= previousCandidateCount) {
+      // Google has nothing further to offer for this city/query set — re-running curation
+      // on an unchanged pool won't help, so stop escalating and keep the previous attempt's
+      // curated result.
+      console.warn(
+        `Google returned no additional candidates for ${city} on retry ${attempt}; stopping retries early.`,
+      );
+      break;
+    }
+    previousCandidateCount = candidatePlaces.length;
+
+    // Any failure here (network, refusal, malformed output) throws and propagates
+    // immediately — this loop only reacts to a *successful* call whose output was too
+    // small; it never retries an actual Claude/API failure.
+    curatedPlaces = await curatePlaces(candidatePlaces, preferences, days.length);
+
+    if (curatedPlaces.length >= targetPlaceCount) {
+      break;
+    }
+    if (attempt === MAX_CURATION_ATTEMPTS - 1) {
+      // Proceed anyway rather than throwing — a thinner-than-ideal but real itinerary is a
+      // better outcome than a 500, and clustering already tolerates sparse input.
+      console.warn(
+        `Curated pool (${curatedPlaces.length}) is below the target (${targetPlaceCount}) for ${city} ` +
+          `after ${MAX_CURATION_ATTEMPTS} attempts; proceeding with what Claude returned.`,
+      );
+    }
+  }
+
+  const placesByDay = clusterPlacesByDay(curatedPlaces, days);
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.save(
