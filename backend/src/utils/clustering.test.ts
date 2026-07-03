@@ -77,29 +77,43 @@ describe('clusterPlacesByDay', () => {
     expect(JSON.parse(JSON.stringify(places))).toEqual(inputBefore);
   });
 
-  it('merges an under-3 cluster into its nearest neighboring cluster', () => {
+  it('rebalances an underpopulated day by pulling filler places from an overloaded neighbor, instead of leaving it empty', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03'];
-    const groupA = [-100.0, -100.05, -99.95, -100.1, -99.9].map((lng, i) => makePlace(`a${i}`, 0, lng));
-    const groupB = [99.9, 99.95, 100.0, 100.05, 100.1].map((lng, i) => makePlace(`b${i}`, 0, lng));
-    // Positioned much closer (in longitude) to group A's centroid (~-100) than group B's (~100).
-    const outlier = makePlace('outlier', 0, -2);
+    // Ratings are distinct and ordered so "lowest-rated member" is unambiguous
+    // at every step of the balancing pass (a4/b4/b3 are each group's lowest).
+    const groupA = [
+      ['a0', -100.0, 10],
+      ['a1', -100.05, 9],
+      ['a2', -99.95, 8],
+      ['a3', -100.1, 7],
+      ['a4', -99.9, 6],
+    ].map(([id, lng, rating]) => makePlace(id as string, 0, lng as number, rating as number));
+    const groupB = [
+      ['b0', 99.9, 20],
+      ['b1', 99.95, 19],
+      ['b2', 100.0, 18],
+      ['b3', 100.05, 17],
+      ['b4', 100.1, 16],
+    ].map(([id, lng, rating]) => makePlace(id as string, 0, lng as number, rating as number));
+    // Positioned much closer (in longitude) to group A's centroid (~-100) than group B's (~100),
+    // so it seeds its own (very underpopulated) cluster between the two.
+    const outlier = makePlace('outlier', 0, -2, 50);
     const places = [...groupA, ...groupB, outlier];
 
     const result = clusterPlacesByDay(places, days);
-    const sizesByDay = days.map((d) => result.get(d)!.length);
 
-    expect([...result.keys()]).toEqual(days);
-    expect(sizesByDay.filter((s) => s === 0)).toHaveLength(1);
-    expect(sizesByDay.sort((x, y) => x - y)).toEqual([0, 5, 6]);
+    // Nothing dropped — 11 places over 3 days (well under the 15/day cap) are
+    // fully redistributed, not discarded.
+    const sizes = days.map((d) => result.get(d)!.length);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(places.length);
 
-    const dayWithSix = days.find((d) => result.get(d)!.length === 6)!;
-    const dayWithFive = days.find((d) => result.get(d)!.length === 5)!;
-    expect(new Set(idsOf(result.get(dayWithSix)!))).toEqual(new Set([...idsOf(groupA), 'outlier']));
-    expect(new Set(idsOf(result.get(dayWithFive)!))).toEqual(new Set(idsOf(groupB)));
-
-    // Nothing dropped in this scenario (max cluster size 6, well under the cap).
-    const totalOut = sizesByDay.reduce((a, b) => a + b, 0);
-    expect(totalOut).toBe(places.length);
+    // 11 / 3 = target sizes [4, 4, 3] (as even as possible), and the outlier's
+    // own (otherwise 1-member) cluster is filled with whichever nearby places
+    // (from its two geographic neighbors) sit closest to it, not just
+    // whichever happened to be lowest-rated somewhere else in the city.
+    expect(new Set(idsOf(result.get(days[0]!)!))).toEqual(new Set(['a0', 'a1', 'a2', 'a3']));
+    expect(new Set(idsOf(result.get(days[1]!)!))).toEqual(new Set(['outlier', 'a4', 'b0', 'b1']));
+    expect(new Set(idsOf(result.get(days[2]!)!))).toEqual(new Set(['b2', 'b3', 'b4']));
   });
 
   it('caps an oversized cluster at 15, keeping the highest-rated and treating null rating as 0', () => {
@@ -117,7 +131,7 @@ describe('clusterPlacesByDay', () => {
     expect(survivorIds).toEqual(expectedSurvivors);
   });
 
-  it('conserves every place exactly once, except for places dropped only via the 15-cap', () => {
+  it('conserves every place and redistributes to keep day sizes as even as possible', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'];
     const oversized = Array.from({ length: 18 }, (_, i) => makePlace(`g${i}`, 0, -100 - i * 0.01, i + 1));
     const s1 = [-0.06, -0.02, 0.02, 0.06].map((lng, i) => makePlace(`s1_${i}`, 0, lng));
@@ -126,37 +140,71 @@ describe('clusterPlacesByDay', () => {
     const places = [...oversized, ...s1, ...s2, ...s3];
 
     const result = clusterPlacesByDay(places, days);
+    const sizes = days.map((d) => result.get(d)!.length);
     const allOutIds = days.flatMap((d) => idsOf(result.get(d)!));
 
-    // No duplicates, nothing invented.
+    // Nothing dropped — 30 places over 4 days (well under the 15/day cap) are
+    // fully redistributed, not discarded. No duplicates, nothing invented.
+    expect(allOutIds).toHaveLength(places.length);
     expect(new Set(allOutIds).size).toBe(allOutIds.length);
     for (const id of allOutIds) {
       expect(idsOf(places)).toContain(id);
     }
 
-    // s1/s2/s3 (12 places, none ever in a cluster over 15) all survive fully.
-    for (const group of [s1, s2, s3]) {
-      for (const p of group) {
-        expect(allOutIds).toContain(p.id);
-      }
-    }
-
-    // Exactly 15 of the oversized group's 18 places survive — the rest dropped by the cap.
-    const survivingOversized = allOutIds.filter((id) => id.startsWith('g'));
-    expect(survivingOversized).toHaveLength(15);
-    expect(allOutIds).toHaveLength(places.length - 3);
+    // 30 / 4 days = as-even-as-possible sizes of exactly two 8s and two 7s —
+    // instead of one day with 18+ and others with as few as 4.
+    expect(sizes.slice().sort((a, b) => a - b)).toEqual([7, 7, 8, 8]);
   });
 
-  it('handles fewer places than days: some day slots legitimately end up empty, nothing lost', () => {
+  it('reaches a local optimum: no swap between any two days would reduce their combined spread from center', () => {
+    const days = ['2026-07-01', '2026-07-02', '2026-07-03'];
+    // Three loose regions with a deliberately uneven raw size (5/4/3, forcing
+    // balanceClusters to pull places across regions to reach even targets),
+    // which is exactly the scenario that can leave a correctable bad
+    // placement on the table for improveCompactness to clean up.
+    const places = [
+      ...[0, 0.5, 1, 1.5, 2].map((lng, i) => makePlace(`x${i}`, 0, lng)),
+      ...[20, 20.5, 21, 21.5].map((lng, i) => makePlace(`y${i}`, 0, lng)),
+      ...[40, 40.3, 40.6].map((lng, i) => makePlace(`z${i}`, 0, lng)),
+    ];
+
+    const result = clusterPlacesByDay(places, days);
+    const clusters = days.map((d) => result.get(d)!);
+
+    // No two places (one from each of any two days) should be swappable for
+    // a lower combined squared distance to their respective day's center —
+    // i.e. the result can't be trivially improved by moving a place to the
+    // day it actually belongs closer to.
+    for (let i = 0; i < clusters.length; i++) {
+      for (let j = i + 1; j < clusters.length; j++) {
+        const ci = clusters[i]!;
+        const cj = clusters[j]!;
+        const centroidI = { lat: 0, lng: ci.reduce((s, p) => s + p.lng, 0) / ci.length };
+        const centroidJ = { lat: 0, lng: cj.reduce((s, p) => s + p.lng, 0) / cj.length };
+        for (const p of ci) {
+          for (const q of cj) {
+            const before = (p.lng - centroidI.lng) ** 2 + (q.lng - centroidJ.lng) ** 2;
+            const after = (q.lng - centroidI.lng) ** 2 + (p.lng - centroidJ.lng) ** 2;
+            expect(after).toBeGreaterThanOrEqual(before);
+          }
+        }
+      }
+    }
+  });
+
+  it('handles fewer places than days: spreads them one-per-day as far as possible, nothing lost', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05'];
     const places = [makePlace('p1', 40.7, -74.0), makePlace('p2', 41.9, -87.6)];
 
     const result = clusterPlacesByDay(places, days);
+    const sizes = days.map((d) => result.get(d)!.length);
+    const allOutIds = days.flatMap((d) => idsOf(result.get(d)!));
 
     expect([...result.keys()]).toEqual(days);
-    const allOutIds = days.flatMap((d) => idsOf(result.get(d)!));
     expect(new Set(allOutIds)).toEqual(new Set(['p1', 'p2']));
     expect(allOutIds).toHaveLength(2);
+    // 2 places over 5 days: at most 1 per day, never both stacked on one day.
+    expect(sizes.every((s) => s <= 1)).toBe(true);
   });
 
   it('handles an empty places array: every day maps to an empty array, no crash', () => {
