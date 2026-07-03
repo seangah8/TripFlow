@@ -26,3 +26,9 @@ directly (not just typecheck): `GET /` and `GET /trips/abc123` both return `200`
 SPA shell correctly — client-side routing renders the right stub per path.
 
 **Suggested commit title:** `feat: add react-router-dom with home and trip-detail routes`
+
+## Post-checkpoint correction (during Step 8)
+
+`TripDetailPage.tsx` was renamed back to `TripPage.tsx` — see Step 8's notes for the full reasoning.
+This step's commit (already made at the time) still refers to `TripDetailPage`; the rename landed
+in a later commit.
