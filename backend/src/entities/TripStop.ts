@@ -31,7 +31,6 @@ export class TripStop {
   @Column('int')
   order!: number;
 
-  // Nullable until v6 introduces Claude's per-stop time estimates.
   @Column('int', { nullable: true })
   estimatedMinutes!: number | null;
 

@@ -16,7 +16,9 @@ export interface TripGenerateRequest {
   preferences: TripPreferences;
 }
 
-// estimatedMinutes/reasoning are always null until v6 fills them in from Claude.
+// estimatedMinutes/reasoning are populated from Claude's curation call (v6). The
+// columns stay nullable at the DB level for schema flexibility, but a stop that
+// made it through curation always has both set together.
 export interface TripStopResponse {
   tripStopId: string;
   order: number;

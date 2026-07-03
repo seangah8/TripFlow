@@ -7,6 +7,7 @@ import { fetchAndUpsertPlaces } from './placeService';
 import { curatePlaces, ClaudeCurationError } from './claudeService';
 import { clusterPlacesByDay } from '../../utils/clustering';
 import type { TripDayResponse, TripGenerateResponse, TripPreferences, TripStopResponse } from '../../types/trip';
+import type { CuratedStop } from '../../types/claudeCuration';
 
 const MAX_TRIP_DAYS = 14;
 const PLACES_PER_DAY_TARGET = 5;
@@ -76,6 +77,8 @@ interface StopDraft {
   date: string;
   order: number;
   place: Place;
+  estimatedMinutes: number;
+  reasoning: string;
 }
 
 export async function generateTrip(
@@ -87,7 +90,7 @@ export async function generateTrip(
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
 
-  let bestCuratedPlaces: Place[] = [];
+  let bestCuratedStops: CuratedStop[] = [];
   let previousCandidateCount = -1;
 
   for (let attempt = 0; attempt < MAX_CURATION_ATTEMPTS; attempt++) {
@@ -105,7 +108,7 @@ export async function generateTrip(
     }
     previousCandidateCount = candidatePlaces.length;
 
-    let curated: Place[];
+    let curated: CuratedStop[];
     try {
       curated = await curatePlaces(candidatePlaces, preferences, days.length);
     } catch (error) {
@@ -114,7 +117,7 @@ export async function generateTrip(
       // found so far and stop retrying. With nothing usable yet, there's no fallback, so
       // it still propagates (matches the decision that a curation failure fails the whole
       // request when there's no curated result to serve instead).
-      if (bestCuratedPlaces.length === 0) {
+      if (bestCuratedStops.length === 0) {
         throw error;
       }
       console.warn(`Curation retry ${attempt} for ${city} failed; keeping the best result found so far.`, error);
@@ -124,24 +127,24 @@ export async function generateTrip(
     // Curation is non-deterministic and each attempt's candidate pool differs, so a later
     // attempt can return fewer places than an earlier one — keep the largest result seen
     // across attempts, not just the last one.
-    if (curated.length > bestCuratedPlaces.length) {
-      bestCuratedPlaces = curated;
+    if (curated.length > bestCuratedStops.length) {
+      bestCuratedStops = curated;
     }
 
-    if (bestCuratedPlaces.length >= targetPlaceCount) {
+    if (bestCuratedStops.length >= targetPlaceCount) {
       break;
     }
     if (attempt === MAX_CURATION_ATTEMPTS - 1) {
       // Proceed anyway rather than throwing — a thinner-than-ideal but real itinerary is a
       // better outcome than a 500, and clustering already tolerates sparse input.
       console.warn(
-        `Curated pool (${bestCuratedPlaces.length}) is below the target (${targetPlaceCount}) for ${city} ` +
+        `Curated pool (${bestCuratedStops.length}) is below the target (${targetPlaceCount}) for ${city} ` +
           `after ${MAX_CURATION_ATTEMPTS} attempts; proceeding with what Claude returned.`,
       );
     }
   }
 
-  if (bestCuratedPlaces.length === 0) {
+  if (bestCuratedStops.length === 0) {
     // Every attempt curated down to nothing usable (Claude selected nothing, or every
     // selected id failed to match a real place) — this is a curation failure, not a
     // legitimately thin trip, so it fails loudly rather than silently persisting an
@@ -149,6 +152,13 @@ export async function generateTrip(
     throw new ClaudeCurationError(`Claude curated zero usable places for ${city} after ${MAX_CURATION_ATTEMPTS} attempt(s)`);
   }
 
+  // clustering.ts's contract stays Place[]-only (deterministic geography, no reason to
+  // know about time estimates/reasoning) — the per-stop details are re-attached below,
+  // after clustering assigns each place to a day.
+  const bestCuratedPlaces = bestCuratedStops.map((stop) => stop.place);
+  const detailsByPlaceId = new Map(
+    bestCuratedStops.map((stop) => [stop.place.googlePlaceId, { estimatedMinutes: stop.estimatedMinutes, reasoning: stop.reasoning }]),
+  );
   const placesByDay = clusterPlacesByDay(bestCuratedPlaces, days);
 
   const tripRepository = AppDataSource.getRepository(Trip);
@@ -163,7 +173,10 @@ export async function generateTrip(
   for (const date of days) {
     const dayPlaces = placesByDay.get(date)!;
     dayPlaces.forEach((place, orderIndex) => {
-      stopDrafts.push({ date, order: orderIndex + 1, place });
+      // Non-null assertion is safe: every place in placesByDay traces back to
+      // bestCuratedStops, which is exactly what detailsByPlaceId was built from.
+      const details = detailsByPlaceId.get(place.googlePlaceId)!;
+      stopDrafts.push({ date, order: orderIndex + 1, place, ...details });
     });
   }
 
@@ -174,8 +187,8 @@ export async function generateTrip(
       placeId: draft.place.id,
       date: draft.date,
       order: draft.order,
-      estimatedMinutes: null,
-      reasoning: null,
+      estimatedMinutes: draft.estimatedMinutes,
+      reasoning: draft.reasoning,
     }),
   );
 
@@ -193,8 +206,8 @@ export async function generateTrip(
       tripStopId: insertResult.identifiers[index]!.id as string,
       order: draft.order,
       place: draft.place,
-      estimatedMinutes: null,
-      reasoning: null,
+      estimatedMinutes: draft.estimatedMinutes,
+      reasoning: draft.reasoning,
     });
   });
 
