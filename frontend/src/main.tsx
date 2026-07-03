@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 
 // QueryClient holds the actual cache that every useQuery call (like
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')!).render(
     {/* Makes queryClient available to any useQuery/useMutation call
         anywhere below via React context — this is what usePlaces relies on. */}
     <QueryClientProvider client={queryClient}>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,
 )
