@@ -2,12 +2,13 @@ import type Anthropic from '@anthropic-ai/sdk';
 import {
   buildUserPrompt,
   curatePlaces,
-  extractSelectedPlaceIds,
-  filterToKnownPlaces,
+  extractSelectedPlaces,
+  filterToKnownStops,
   ClaudeCurationError,
 } from '../api/services/claudeService';
 import type { Place } from '../entities/Place';
 import type { TripPreferences } from '../types/trip';
+import type { ClaudeCuratedStop } from '../types/claudeCuration';
 
 function makePlace(googlePlaceId: string, overrides: Partial<Place> = {}): Place {
   return {
@@ -21,6 +22,15 @@ function makePlace(googlePlaceId: string, overrides: Partial<Place> = {}): Place
     photoUrl: 'https://example.com/photo.jpg',
     openingHours: { periods: [] },
     category: null,
+    ...overrides,
+  };
+}
+
+function makeSelection(googlePlaceId: string, overrides: Partial<ClaudeCuratedStop> = {}): ClaudeCuratedStop {
+  return {
+    googlePlaceId,
+    estimatedMinutes: 60,
+    reasoning: `Why ${googlePlaceId} is worth it.`,
     ...overrides,
   };
 }
@@ -41,7 +51,7 @@ function fakeTextBlock(text: string): Anthropic.TextBlock {
 function fakeMessage(overrides: Partial<Anthropic.Message> = {}): Anthropic.Message {
   return {
     stop_reason: 'end_turn',
-    content: [fakeTextBlock(JSON.stringify({ selectedPlaceIds: [] }))],
+    content: [fakeTextBlock(JSON.stringify({ selectedPlaces: [] }))],
     ...overrides,
   } as Anthropic.Message;
 }
@@ -77,64 +87,126 @@ describe('buildUserPrompt', () => {
   });
 });
 
-describe('extractSelectedPlaceIds', () => {
+describe('extractSelectedPlaces', () => {
   it('parses a well-formed structured-output response', () => {
     const message = fakeMessage({
-      content: [fakeTextBlock(JSON.stringify({ selectedPlaceIds: ['a', 'b'] }))],
+      content: [
+        fakeTextBlock(
+          JSON.stringify({
+            selectedPlaces: [makeSelection('a', { estimatedMinutes: 30 }), makeSelection('b', { estimatedMinutes: 90 })],
+          }),
+        ),
+      ],
     });
-    expect(extractSelectedPlaceIds(message)).toEqual(['a', 'b']);
+    expect(extractSelectedPlaces(message)).toEqual([
+      makeSelection('a', { estimatedMinutes: 30 }),
+      makeSelection('b', { estimatedMinutes: 90 }),
+    ]);
   });
 
   it('throws ClaudeCurationError on a refusal', () => {
     const message = fakeMessage({ stop_reason: 'refusal' });
-    expect(() => extractSelectedPlaceIds(message)).toThrow(ClaudeCurationError);
+    expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
   it('throws ClaudeCurationError when the response was truncated at max_tokens', () => {
     const message = fakeMessage({ stop_reason: 'max_tokens' });
-    expect(() => extractSelectedPlaceIds(message)).toThrow(ClaudeCurationError);
+    expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
   it('throws ClaudeCurationError when there is no text content block', () => {
     const message = fakeMessage({ content: [{ type: 'thinking', thinking: '', signature: '' }] } as never);
-    expect(() => extractSelectedPlaceIds(message)).toThrow(ClaudeCurationError);
+    expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
   it('throws ClaudeCurationError when the text block is not valid JSON', () => {
     const message = fakeMessage({ content: [fakeTextBlock('not json')] });
-    expect(() => extractSelectedPlaceIds(message)).toThrow(ClaudeCurationError);
+    expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
   it('throws ClaudeCurationError when the parsed JSON does not match the schema', () => {
     const message = fakeMessage({ content: [fakeTextBlock(JSON.stringify({ wrongField: [] }))] });
-    expect(() => extractSelectedPlaceIds(message)).toThrow(ClaudeCurationError);
+    expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
+  });
+
+  it('drops an entry missing a required field instead of throwing', () => {
+    const message = fakeMessage({
+      content: [
+        fakeTextBlock(
+          JSON.stringify({
+            selectedPlaces: [{ googlePlaceId: 'a', estimatedMinutes: 30 }, makeSelection('b')],
+          }),
+        ),
+      ],
+    });
+    expect(extractSelectedPlaces(message).map((s) => s.googlePlaceId)).toEqual(['b']);
+  });
+
+  it('clamps an out-of-range estimatedMinutes into [15, 240] and rounds to the nearest 15', () => {
+    const message = fakeMessage({
+      content: [
+        fakeTextBlock(
+          JSON.stringify({
+            selectedPlaces: [
+              makeSelection('too-short', { estimatedMinutes: 2 }),
+              makeSelection('too-long', { estimatedMinutes: 500 }),
+              makeSelection('off-step', { estimatedMinutes: 52 }),
+            ],
+          }),
+        ),
+      ],
+    });
+    const result = extractSelectedPlaces(message);
+    expect(result.find((s) => s.googlePlaceId === 'too-short')!.estimatedMinutes).toBe(15);
+    expect(result.find((s) => s.googlePlaceId === 'too-long')!.estimatedMinutes).toBe(240);
+    expect(result.find((s) => s.googlePlaceId === 'off-step')!.estimatedMinutes).toBe(45);
+  });
+
+  it('truncates a reasoning string longer than 300 characters', () => {
+    const message = fakeMessage({
+      content: [
+        fakeTextBlock(
+          JSON.stringify({
+            selectedPlaces: [makeSelection('a', { reasoning: 'x'.repeat(400) })],
+          }),
+        ),
+      ],
+    });
+    expect(extractSelectedPlaces(message)[0]!.reasoning).toHaveLength(300);
   });
 });
 
-describe('filterToKnownPlaces', () => {
-  it('keeps only places whose googlePlaceId was selected', () => {
+describe('filterToKnownStops', () => {
+  it('keeps only places whose googlePlaceId was selected, attaching estimatedMinutes/reasoning', () => {
     const places = [makePlace('a'), makePlace('b'), makePlace('c')];
-    expect(filterToKnownPlaces(['a', 'c'], places).map((p) => p.googlePlaceId)).toEqual(['a', 'c']);
+    const selections = [makeSelection('a', { estimatedMinutes: 45 }), makeSelection('c', { estimatedMinutes: 90 })];
+    const result = filterToKnownStops(selections, places);
+    expect(result.map((s) => s.place.googlePlaceId)).toEqual(['a', 'c']);
+    expect(result.map((s) => s.estimatedMinutes)).toEqual([45, 90]);
+    expect(result.map((s) => s.reasoning)).toEqual([selections[0]!.reasoning, selections[1]!.reasoning]);
   });
 
   it('silently drops a selected id that does not exist in the input — the hallucination guard', () => {
     const places = [makePlace('a'), makePlace('b')];
-    expect(filterToKnownPlaces(['a', 'made-up-id'], places).map((p) => p.googlePlaceId)).toEqual(['a']);
+    const selections = [makeSelection('a'), makeSelection('made-up-id')];
+    expect(filterToKnownStops(selections, places).map((s) => s.place.googlePlaceId)).toEqual(['a']);
   });
 
   it('returns an empty array when nothing was selected', () => {
     const places = [makePlace('a'), makePlace('b')];
-    expect(filterToKnownPlaces([], places)).toEqual([]);
+    expect(filterToKnownStops([], places)).toEqual([]);
   });
 
   it('preserves the input places order, not the selected-ids order', () => {
     const places = [makePlace('a'), makePlace('b'), makePlace('c')];
-    expect(filterToKnownPlaces(['c', 'a'], places).map((p) => p.googlePlaceId)).toEqual(['a', 'c']);
+    const selections = [makeSelection('c'), makeSelection('a')];
+    expect(filterToKnownStops(selections, places).map((s) => s.place.googlePlaceId)).toEqual(['a', 'c']);
   });
 
   it('does not duplicate a place even if its id is selected more than once', () => {
     const places = [makePlace('a'), makePlace('b')];
-    expect(filterToKnownPlaces(['a', 'a'], places).map((p) => p.googlePlaceId)).toEqual(['a']);
+    const selections = [makeSelection('a', { estimatedMinutes: 30 }), makeSelection('a', { estimatedMinutes: 60 })];
+    expect(filterToKnownStops(selections, places).map((s) => s.place.googlePlaceId)).toEqual(['a']);
   });
 });
 
@@ -150,21 +222,32 @@ describe('curatePlaces', () => {
     expect(requestArg.model).toBe('claude-sonnet-5');
     expect(requestArg.thinking).toEqual({ type: 'disabled' });
     expect(requestArg.output_config.format.type).toBe('json_schema');
-    expect(requestArg.output_config.format.schema.required).toEqual(['selectedPlaceIds']);
+    expect(requestArg.output_config.format.schema.required).toEqual(['selectedPlaces']);
     expect(requestArg.messages[0].content).toContain('Trip length: 4 days');
   });
 
-  it('returns the curated subset of Place entities, dropping any hallucinated id', async () => {
+  it('returns the curated subset with estimatedMinutes/reasoning, dropping any hallucinated id', async () => {
     const places = [makePlace('a'), makePlace('b'), makePlace('c')];
     const create = jest.fn().mockResolvedValue(
       fakeMessage({
-        content: [fakeTextBlock(JSON.stringify({ selectedPlaceIds: ['a', 'c', 'not-real'] }))],
+        content: [
+          fakeTextBlock(
+            JSON.stringify({
+              selectedPlaces: [
+                makeSelection('a', { estimatedMinutes: 30 }),
+                makeSelection('c', { estimatedMinutes: 120 }),
+                makeSelection('not-real'),
+              ],
+            }),
+          ),
+        ],
       }),
     );
 
     const result = await curatePlaces(places, PREFERENCES, 4, fakeClient(create));
 
-    expect(result.map((p) => p.googlePlaceId)).toEqual(['a', 'c']);
+    expect(result.map((s) => s.place.googlePlaceId)).toEqual(['a', 'c']);
+    expect(result.map((s) => s.estimatedMinutes)).toEqual([30, 120]);
   });
 
   it('propagates ClaudeCurationError from a refused request', async () => {
