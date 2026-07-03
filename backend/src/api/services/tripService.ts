@@ -5,7 +5,7 @@ import { TripStop } from '../../entities/TripStop';
 import type { Place } from '../../entities/Place';
 import { fetchAndUpsertPlaces } from './placeService';
 import { clusterPlacesByDay } from '../../utils/clustering';
-import type { TripDayResponse, TripGenerateResponse, TripStopResponse } from '../../types/trip';
+import type { TripDayResponse, TripGenerateResponse, TripPreferences, TripStopResponse } from '../../types/trip';
 
 const MAX_TRIP_DAYS = 14;
 const PLACES_PER_DAY_TARGET = 5;
@@ -57,16 +57,21 @@ interface StopDraft {
   place: Place;
 }
 
-export async function generateTrip(city: string, startDate: string, endDate: string): Promise<TripGenerateResponse> {
+export async function generateTrip(
+  city: string,
+  startDate: string,
+  endDate: string,
+  preferences: TripPreferences,
+): Promise<TripGenerateResponse> {
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
 
-  const places = await fetchAndUpsertPlaces(city, targetPlaceCount);
+  const places = await fetchAndUpsertPlaces(city, targetPlaceCount, preferences.interests);
   const placesByDay = clusterPlacesByDay(places, days);
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.save(
-    tripRepository.create({ city, startDate, endDate, preferences: null }),
+    tripRepository.create({ city, startDate, endDate, preferences }),
   );
 
   // Each draft carries its own `place` directly, so the response's stop-to-place
@@ -121,6 +126,50 @@ export async function generateTrip(city: string, startDate: string, endDate: str
     city,
     startDate,
     endDate,
+    days: responseDays,
+  };
+}
+
+// Reconstructs the exact TripGenerateResponse shape from persisted rows — lets
+// GET /api/trips/:id (v4, pulled forward from v7) serve the same contract a
+// fresh generate returns, so the frontend doesn't need two response shapes.
+export async function getTripById(tripId: string): Promise<TripGenerateResponse | null> {
+  const tripRepository = AppDataSource.getRepository(Trip);
+  const trip = await tripRepository.findOne({ where: { id: tripId } });
+  if (!trip) {
+    return null;
+  }
+
+  const days = getDateRange(trip.startDate, trip.endDate);
+
+  const tripStopRepository = AppDataSource.getRepository(TripStop);
+  const stops = await tripStopRepository.find({
+    where: { tripId },
+    relations: { place: true },
+    order: { date: 'ASC', order: 'ASC' },
+  });
+
+  const stopsByDay = new Map<string, TripStopResponse[]>(days.map((date) => [date, []]));
+  for (const stop of stops) {
+    stopsByDay.get(stop.date)!.push({
+      tripStopId: stop.id,
+      order: stop.order,
+      place: stop.place,
+      estimatedMinutes: stop.estimatedMinutes,
+      reasoning: stop.reasoning,
+    });
+  }
+
+  const responseDays: TripDayResponse[] = days.map((date) => ({
+    date,
+    stops: stopsByDay.get(date)!,
+  }));
+
+  return {
+    tripId: trip.id,
+    city: trip.city,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
     days: responseDays,
   };
 }
