@@ -25,4 +25,7 @@ export interface GooglePlace {
 
 export interface GooglePlacesSearchTextResponse {
   places?: GooglePlace[];
+  // Present when more results exist beyond this page — see placesService.ts
+  // pagination loop. Must be requested via the field mask like any other field.
+  nextPageToken?: string;
 }

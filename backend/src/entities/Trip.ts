@@ -20,8 +20,10 @@ export class Trip {
   @Column('date')
   endDate!: string;
 
-  @Column('jsonb')
-  preferences!: TripPreferences;
+  // Nullable until v4 introduces the preferences wizard — v2's generate flow
+  // has nothing to populate this with yet.
+  @Column('jsonb', { nullable: true })
+  preferences!: TripPreferences | null;
 
   @CreateDateColumn()
   createdAt!: Date;
