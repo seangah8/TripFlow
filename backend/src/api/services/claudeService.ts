@@ -1,14 +1,23 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Place } from '../../entities/Place';
 import type { TripPreferences } from '../../types/trip';
-import type { ClaudePlaceSummary, CurationOutput } from '../../types/claudeCuration';
+import type { ClaudeCuratedStop, ClaudePlaceSummary, CurationOutput, CuratedStop } from '../../types/claudeCuration';
 
 // Locked in BLUE_PRINT.md Section 5 — curation is a classification-style task over a list
 // Google already returned, not open-ended reasoning, so Sonnet 5 is the right tier.
 const CLAUDE_MODEL = 'claude-sonnet-5';
 
-// Output is just an array of googlePlaceId strings — well under the streaming threshold.
-const MAX_OUTPUT_TOKENS = 4096;
+// Raised from 4096 in v5: each kept place now also costs a ~300-char reasoning
+// string (~75 tokens) plus an estimatedMinutes value, not just a bare id.
+const MAX_OUTPUT_TOKENS = 8192;
+
+// v6's bounds for estimatedMinutes — also enforced defensively in code (see
+// extractSelectedPlaces below), since the request schema's minimum/maximum/
+// multipleOf aren't guaranteed to be enforced server-side the way type/required are.
+const MIN_ESTIMATED_MINUTES = 15;
+const MAX_ESTIMATED_MINUTES = 240;
+const ESTIMATED_MINUTES_STEP = 15;
+const MAX_REASONING_LENGTH = 300;
 
 // Not caught specially by tripController.ts — falls into its existing generic
 // catch-and-500 branch, per this session's decision that a curation failure fails
@@ -19,12 +28,26 @@ export class ClaudeCurationError extends Error {}
 const CURATION_SCHEMA = {
   type: 'object',
   properties: {
-    selectedPlaceIds: {
+    selectedPlaces: {
       type: 'array',
-      items: { type: 'string' },
+      items: {
+        type: 'object',
+        properties: {
+          googlePlaceId: { type: 'string' },
+          estimatedMinutes: {
+            type: 'integer',
+            minimum: MIN_ESTIMATED_MINUTES,
+            maximum: MAX_ESTIMATED_MINUTES,
+            multipleOf: ESTIMATED_MINUTES_STEP,
+          },
+          reasoning: { type: 'string', maxLength: MAX_REASONING_LENGTH },
+        },
+        required: ['googlePlaceId', 'estimatedMinutes', 'reasoning'],
+        additionalProperties: false,
+      },
     },
   },
-  required: ['selectedPlaceIds'],
+  required: ['selectedPlaces'],
   additionalProperties: false,
 } as const;
 
@@ -57,16 +80,21 @@ Google-verified places into the best subset for a multi-day vacation itinerary.
 You will be given the traveler's preferences, the number of days the trip covers, 
 and the full list of candidate places (name, category, rating, coordinates).
 
-Select the subset of places that are legitimate, worth visiting, 
-and a good fit for the stated preferences and trip length. 
-Exclude places that are low-quality, 
-clearly off-theme, redundant duplicates of a better-rated nearby place, 
-or not genuine attractions (e.g. gas stations, generic parking, chain drugstores) 
+Select the subset of places that are legitimate, worth visiting,
+and a good fit for the stated preferences and trip length.
+Exclude places that are low-quality,
+clearly off-theme, redundant duplicates of a better-rated nearby place,
+or not genuine attractions (e.g. gas stations, generic parking, chain drugstores)
 unless they match a stated interest such as "shopping".
 
-Return every place you keep by its exact googlePlaceId from the input list — do 
-not invent, alter, abbreviate, or guess an id. 
-Only return ids that appear verbatim in the candidate list.`;
+For every place you keep, return an object with: its exact googlePlaceId from
+the input list (do not invent, alter, abbreviate, or guess an id — only return
+ids that appear verbatim in the candidate list); an estimatedMinutes value (a
+realistic whole number of minutes, between 15 and 240, in 15-minute
+increments, for how long a typical visitor would spend there); and a
+reasoning string (at most 300 characters) briefly explaining, for the
+traveler reading it, why this place earned its spot on the trip given their
+stated preferences.`;
 
 function createClaudeClient(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -76,9 +104,17 @@ function createClaudeClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
+// Clamps a Claude-provided estimate into the valid range and snaps it to the nearest
+// 15-minute step — used instead of rejecting the whole stop over a minor out-of-range
+// value, since losing a place entirely is a worse outcome than a slightly-adjusted estimate.
+function normalizeEstimatedMinutes(rawMinutes: number): number {
+  const clamped = Math.min(Math.max(rawMinutes, MIN_ESTIMATED_MINUTES), MAX_ESTIMATED_MINUTES);
+  return Math.round(clamped / ESTIMATED_MINUTES_STEP) * ESTIMATED_MINUTES_STEP;
+}
+
 // A refusal or truncation is a normal, non-throwing HTTP 200 from the SDK's perspective —
 // stop_reason has to be checked before the content is trusted at all.
-export function extractSelectedPlaceIds(message: Anthropic.Message): string[] {
+export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCuratedStop[] {
   if (message.stop_reason === 'refusal') {
     throw new ClaudeCurationError('Claude refused the curation request');
   }
@@ -98,20 +134,42 @@ export function extractSelectedPlaceIds(message: Anthropic.Message): string[] {
     throw new ClaudeCurationError(`Claude curation response was not valid JSON: ${(error as Error).message}`);
   }
 
-  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as CurationOutput).selectedPlaceIds)) {
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as CurationOutput).selectedPlaces)) {
     throw new ClaudeCurationError('Claude curation response did not match the expected schema');
   }
 
-  return (parsed as CurationOutput).selectedPlaceIds.filter((id): id is string => typeof id === 'string');
+  // Defensive validation/normalization on top of the request schema — the json_schema
+  // structured-output constraints (minimum/maximum/multipleOf/maxLength) aren't guaranteed
+  // to be server-enforced the same way type/required are.
+  const entries: unknown[] = (parsed as CurationOutput).selectedPlaces;
+  return entries
+    .filter(
+      (entry): entry is ClaudeCuratedStop =>
+        !!entry &&
+        typeof entry === 'object' &&
+        typeof (entry as ClaudeCuratedStop).googlePlaceId === 'string' &&
+        typeof (entry as ClaudeCuratedStop).estimatedMinutes === 'number' &&
+        typeof (entry as ClaudeCuratedStop).reasoning === 'string',
+    )
+    .map((entry) => ({
+      googlePlaceId: entry.googlePlaceId,
+      estimatedMinutes: normalizeEstimatedMinutes(entry.estimatedMinutes),
+      reasoning: entry.reasoning.slice(0, MAX_REASONING_LENGTH),
+    }));
 }
 
 // Never trusts Claude's ids directly — filtering the *known* `places` array down to whichever
 // ids survived means a fabricated or mistyped googlePlaceId simply matches nothing, and the
 // result can never contain a Place that wasn't in the input. Also naturally dedupes (a
 // googlePlaceId can match at most one Place) and preserves the input's original order.
-export function filterToKnownPlaces(selectedIds: string[], places: Place[]): Place[] {
-  const validIds = new Set(selectedIds);
-  return places.filter((place) => validIds.has(place.googlePlaceId));
+export function filterToKnownStops(selectedStops: ClaudeCuratedStop[], places: Place[]): CuratedStop[] {
+  const selectionByPlaceId = new Map(selectedStops.map((stop) => [stop.googlePlaceId, stop]));
+  return places
+    .filter((place) => selectionByPlaceId.has(place.googlePlaceId))
+    .map((place) => {
+      const selection = selectionByPlaceId.get(place.googlePlaceId)!;
+      return { place, estimatedMinutes: selection.estimatedMinutes, reasoning: selection.reasoning };
+    });
 }
 
 // `client` is injectable so unit tests can pass a fake `{ messages: { create: jest.fn() } }`
@@ -121,7 +179,7 @@ export async function curatePlaces(
   preferences: TripPreferences,
   totalDays: number,
   client: Anthropic = createClaudeClient(),
-): Promise<Place[]> {
+): Promise<CuratedStop[]> {
   const response = await client.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: MAX_OUTPUT_TOKENS,
@@ -139,6 +197,6 @@ export async function curatePlaces(
     messages: [{ role: 'user', content: buildUserPrompt(places, preferences, totalDays) }],
   });
 
-  const selectedIds = extractSelectedPlaceIds(response);
-  return filterToKnownPlaces(selectedIds, places);
+  const selectedStops = extractSelectedPlaces(response);
+  return filterToKnownStops(selectedStops, places);
 }
