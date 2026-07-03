@@ -8,11 +8,12 @@ export interface TripPreferences {
   budget: 'budget' | 'mid-range' | 'luxury';
 }
 
-// Body for POST /api/trips/generate — BLUE_PRINT.md Section 5 (v2: city + dates only).
+// Body for POST /api/trips/generate — BLUE_PRINT.md Section 5 (v2: city + dates; v4: + preferences).
 export interface TripGenerateRequest {
   city: string;
   startDate: string;
   endDate: string;
+  preferences: TripPreferences;
 }
 
 // estimatedMinutes/reasoning are always null until v6 fills them in from Claude.
