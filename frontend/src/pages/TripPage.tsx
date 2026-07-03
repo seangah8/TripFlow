@@ -1,23 +1,38 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { DayTimeline } from '../components/DayTimeline';
 import { PlacesMap } from '../components/PlacesMap';
 import { useTrip } from '../hooks/useTrip';
-import type { Place } from '../types/place';
+import type { TripStop } from '../types/trip';
 import '../styles/TripPage.scss';
 
 export function TripPage(): JSX.Element {
   const { tripId } = useParams<{ tripId: string }>();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const { data: trip, isLoading, isError, error } = useTrip(tripId);
 
-  const places = useMemo<Place[]>(() => {
-    if (!trip) {
+  // Day 1 auto-selected on load (and whenever a different trip finishes loading) —
+  // there is no more "no day selected" state once a trip exists.
+  useEffect(() => {
+    if (trip && trip.days.length > 0) {
+      setSelectedDate(trip.days[0]!.date);
+      setSelectedStopId(null);
+    }
+  }, [trip]);
+
+  function handleSelectDate(date: string): void {
+    setSelectedDate(date);
+    // A stop from the previous day no longer applies once the day changes.
+    setSelectedStopId(null);
+  }
+
+  const currentDayStops = useMemo<TripStop[]>(() => {
+    if (!trip || !selectedDate) {
       return [];
     }
-    const days = selectedDate ? trip.days.filter((day) => day.date === selectedDate) : trip.days;
-    return days.flatMap((day) => day.stops.map((stop) => stop.place));
+    return trip.days.find((day) => day.date === selectedDate)?.stops ?? [];
   }, [trip, selectedDate]);
 
   if (isLoading) {
@@ -40,9 +55,9 @@ export function TripPage(): JSX.Element {
         <h1>{trip.city}</h1>
       </header>
       <main className="trip-page__map">
-        <PlacesMap places={places} />
+        <PlacesMap stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />
       </main>
-      <DayTimeline days={trip.days} selectedDate={selectedDate} onSelectDate={setSelectedDate} />
+      <DayTimeline days={trip.days} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
     </div>
   );
 }

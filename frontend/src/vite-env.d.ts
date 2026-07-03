@@ -7,6 +7,7 @@
 // `import.meta.env.VITE_API_URL` would fail to typecheck.
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  readonly VITE_GOOGLE_MAPS_MAP_ID: string;
 }
 
 interface ImportMeta {

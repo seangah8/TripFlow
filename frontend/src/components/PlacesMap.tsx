@@ -1,10 +1,13 @@
 import { useEffect } from 'react';
 import type { JSX } from 'react';
-import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
-import type { Place } from '../types/place';
+import { AdvancedMarker, APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
+import type { TripStop } from '../types/trip';
+import { PlacePin } from './PlacePin';
 
 interface PlacesMapProps {
-  places: Place[];
+  stops: TripStop[];
+  selectedStopId: string | null;
+  onSelectStop: (id: string) => void;
 }
 
 // No results yet — a neutral world view rather than defaulting to any one city.
@@ -12,35 +15,66 @@ const DEFAULT_CENTER = { lat: 20, lng: 0 };
 const DEFAULT_ZOOM = 2;
 
 // Separate child component because useMap() only works inside the <Map> tree
-// (it reads the map instance from vis.gl's internal context).
-function FitBoundsToPlaces({ places }: { places: Place[] }): null {
+// (it reads the map instance from vis.gl's internal context). Fires on the
+// initial load and every day switch (stops array changes), never on a stop
+// selection alone.
+function FitBoundsToPlaces({ stops }: { stops: TripStop[] }): null {
   const map = useMap();
 
   useEffect(() => {
-    if (!map || places.length === 0) {
+    if (!map || stops.length === 0) {
       return;
     }
 
     const bounds = new google.maps.LatLngBounds();
-    places.forEach((place) => bounds.extend({ lat: place.lat, lng: place.lng }));
+    stops.forEach((stop) => bounds.extend({ lat: stop.place.lat, lng: stop.place.lng }));
     map.fitBounds(bounds);
-  }, [map, places]);
+  }, [map, stops]);
 
   return null;
 }
 
-export function PlacesMap({ places }: PlacesMapProps): JSX.Element {
+// Pans (never zooms) to the selected stop's marker. Keyed on selectedStopId, not
+// stops — switching days always clears selectedStopId back to null first (see
+// TripPage), so this effect only ever fires from an explicit stop selection and
+// never fights with FitBoundsToPlaces on a day switch.
+function PanToSelectedStop({ stops, selectedStopId }: { stops: TripStop[]; selectedStopId: string | null }): null {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !selectedStopId) {
+      return;
+    }
+    const stop = stops.find((s) => s.tripStopId === selectedStopId);
+    if (!stop) {
+      return;
+    }
+    map.panTo({ lat: stop.place.lat, lng: stop.place.lng });
+  }, [map, stops, selectedStopId]);
+
+  return null;
+}
+
+export function PlacesMap({ stops, selectedStopId, onSelectStop }: PlacesMapProps): JSX.Element {
   return (
-    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={['marker']}>
       <Map
         style={{ width: '100%', height: '100%' }}
         defaultCenter={DEFAULT_CENTER}
         defaultZoom={DEFAULT_ZOOM}
+        mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID}
       >
-        {places.map((place) => (
-          <Marker key={place.id} position={{ lat: place.lat, lng: place.lng }} title={place.name} />
+        {stops.map((stop) => (
+          <AdvancedMarker
+            key={stop.tripStopId}
+            position={{ lat: stop.place.lat, lng: stop.place.lng }}
+            onClick={() => onSelectStop(stop.tripStopId)}
+          >
+            <PlacePin photoUrl={stop.place.photoUrl} selected={stop.tripStopId === selectedStopId} />
+          </AdvancedMarker>
         ))}
-        <FitBoundsToPlaces places={places} />
+        <FitBoundsToPlaces stops={stops} />
+        <PanToSelectedStop stops={stops} selectedStopId={selectedStopId} />
       </Map>
     </APIProvider>
   );
