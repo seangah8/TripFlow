@@ -1,9 +1,39 @@
 import { Request, Response } from 'express';
-import { generateTrip, InvalidTripDateRangeError } from '../services/tripService';
-import type { TripGenerateRequest } from '../../types/trip';
+import { generateTrip, getTripById, InvalidTripDateRangeError } from '../services/tripService';
+import type { TripGenerateRequest, TripPreferences } from '../../types/trip';
+
+const VALID_VIBES = new Set<TripPreferences['vibe']>(['relaxed', 'moderate', 'packed']);
+const VALID_INTERESTS = new Set<TripPreferences['interests'][number]>([
+  'museums',
+  'food',
+  'nature',
+  'nightlife',
+  'shopping',
+]);
+const VALID_GROUP_TYPES = new Set<TripPreferences['groupType']>(['solo', 'couple', 'family', 'friends']);
+const VALID_BUDGETS = new Set<TripPreferences['budget']>(['budget', 'mid-range', 'luxury']);
+
+// Real request boundary, same reasoning as the date validation below: don't trust the
+// wizard's own client-side validation to have kept the shape honest.
+function isValidPreferences(value: unknown): value is TripPreferences {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const { vibe, interests, groupType, budget } = value as Partial<TripPreferences>;
+  return (
+    typeof vibe === 'string' &&
+    VALID_VIBES.has(vibe as TripPreferences['vibe']) &&
+    Array.isArray(interests) &&
+    interests.every((interest) => VALID_INTERESTS.has(interest)) &&
+    typeof groupType === 'string' &&
+    VALID_GROUP_TYPES.has(groupType as TripPreferences['groupType']) &&
+    typeof budget === 'string' &&
+    VALID_BUDGETS.has(budget as TripPreferences['budget'])
+  );
+}
 
 export async function generateTripHandler(req: Request, res: Response): Promise<void> {
-  const { city, startDate, endDate } = req.body as Partial<TripGenerateRequest>;
+  const { city, startDate, endDate, preferences } = req.body as Partial<TripGenerateRequest>;
 
   if (typeof city !== 'string' || !city.trim()) {
     res.status(400).json({ error: 'city is required' });
@@ -13,9 +43,13 @@ export async function generateTripHandler(req: Request, res: Response): Promise<
     res.status(400).json({ error: 'startDate and endDate are required' });
     return;
   }
+  if (!isValidPreferences(preferences)) {
+    res.status(400).json({ error: 'preferences is required and must include a valid vibe, interests, groupType, and budget' });
+    return;
+  }
 
   try {
-    const trip = await generateTrip(city.trim(), startDate, endDate);
+    const trip = await generateTrip(city.trim(), startDate, endDate, preferences);
     res.json(trip);
   } catch (error) {
     if (error instanceof InvalidTripDateRangeError) {
@@ -24,5 +58,19 @@ export async function generateTripHandler(req: Request, res: Response): Promise<
     }
     console.error('Failed to generate trip', error);
     res.status(500).json({ error: 'Failed to generate trip' });
+  }
+}
+
+export async function getTripHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const trip = await getTripById(req.params.id);
+    if (!trip) {
+      res.status(404).json({ error: 'Trip not found' });
+      return;
+    }
+    res.json(trip);
+  } catch (error) {
+    console.error('Failed to load trip', error);
+    res.status(500).json({ error: 'Failed to load trip' });
   }
 }
