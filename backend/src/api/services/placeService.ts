@@ -113,16 +113,20 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20, inter
   const queries = buildSearchQueries(city, interests);
   const targetPerQuery = perQueryTarget(targetCount, queries.length);
 
-  const collected: GooglePlace[] = [];
-  for (const queryText of queries) {
-    const queryResults = await collectPlacesForQuery(queryText, apiKey, targetPerQuery);
-    // collectPlacesForQuery only stops paginating once it has *at least* targetPerQuery —
-    // a single page can return up to 20, well past that floor — so cap each query's own
-    // contribution here. Without this, the baseline query (always first) fills most of the
-    // final list before later interest queries get a fair share, since the final slice below
-    // just keeps whichever results happen to be at the front.
-    collected.push(...queryResults.slice(0, targetPerQuery));
-  }
+  // Queries are independent of each other, so run them concurrently — Google Places'
+  // per-project quota is a queries-per-minute budget, not a concurrency limit, so a
+  // handful of simultaneous calls from one generate isn't meaningfully riskier than
+  // firing them seconds apart, just faster. PAGE_TOKEN_DELAY_MS still applies within
+  // each query's own pagination loop, which genuinely does need to stay sequential.
+  const perQueryResults = await Promise.all(
+    queries.map((queryText) => collectPlacesForQuery(queryText, apiKey, targetPerQuery)),
+  );
+  // collectPlacesForQuery only stops paginating once it has *at least* targetPerQuery —
+  // a single page can return up to 20, well past that floor — so cap each query's own
+  // contribution here. Without this, the baseline query (always first) fills most of the
+  // final list before later interest queries get a fair share, since the final slice below
+  // just keeps whichever results happen to be at the front.
+  const collected = perQueryResults.flatMap((queryResults) => queryResults.slice(0, targetPerQuery));
 
   if (collected.length === 0) {
     return [];

@@ -13,6 +13,8 @@ const VALID_INTERESTS = new Set<TripPreferences['interests'][number]>([
 const VALID_GROUP_TYPES = new Set<TripPreferences['groupType']>(['solo', 'couple', 'family', 'friends']);
 const VALID_BUDGETS = new Set<TripPreferences['budget']>(['budget', 'mid-range', 'luxury']);
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Real request boundary, same reasoning as the date validation below: don't trust the
 // wizard's own client-side validation to have kept the shape honest.
 function isValidPreferences(value: unknown): value is TripPreferences {
@@ -24,6 +26,11 @@ function isValidPreferences(value: unknown): value is TripPreferences {
     typeof vibe === 'string' &&
     VALID_VIBES.has(vibe as TripPreferences['vibe']) &&
     Array.isArray(interests) &&
+    // Bounded by VALID_INTERESTS.size and deduped — without this, an array of many
+    // (possibly duplicated) valid values would pass and turn into that many sequential
+    // Google Places calls in fetchAndUpsertPlaces, one real API request per entry.
+    interests.length <= VALID_INTERESTS.size &&
+    new Set(interests).size === interests.length &&
     interests.every((interest) => VALID_INTERESTS.has(interest)) &&
     typeof groupType === 'string' &&
     VALID_GROUP_TYPES.has(groupType as TripPreferences['groupType']) &&
@@ -62,6 +69,15 @@ export async function generateTripHandler(req: Request, res: Response): Promise<
 }
 
 export async function getTripHandler(req: Request, res: Response): Promise<void> {
+  // Trip.id is a uuid column — a malformed id would otherwise reach Postgres and throw
+  // a type error there, which the catch block below can't distinguish from a real
+  // failure. An invalid format can never match a real trip, so treat it the same as
+  // "not found" rather than a 500.
+  if (!UUID_PATTERN.test(req.params.id)) {
+    res.status(404).json({ error: 'Trip not found' });
+    return;
+  }
+
   try {
     const trip = await getTripById(req.params.id);
     if (!trip) {

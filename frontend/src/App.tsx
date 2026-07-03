@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { HomePage } from './pages/HomePage';
 import { TripPage } from './pages/TripPage';
 
@@ -8,6 +8,7 @@ function App(): JSX.Element {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/trips/:tripId" element={<TripPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
