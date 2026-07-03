@@ -48,7 +48,7 @@ Unchanged from the original blueprint: backend + frontend scaffolded, TypeORM co
 **User-facing outcome:** Type a city, hit "Generate," see ~20 real Google Places rendered as markers on an interactive map. No dates, no days, no AI, no persistence beyond the `places` catalog itself.
 
 **Backend:**
-- `placesService.ts`: `fetchAndUpsertPlaces(city)` — one or a few `searchText` calls against Google Places (New) for the city, broad query (no interest filtering yet — that's v4), upserts into `places` (same table/columns as v0: id, googlePlaceId, name, lat, lng, city, rating, photoUrl, openingHours).
+- `placeService.ts`: `fetchAndUpsertPlaces(city)` — one or a few `searchText` calls against Google Places (New) for the city, broad query (no interest filtering yet — that's v4), upserts into `places` (same table/columns as v0: id, googlePlaceId, name, lat, lng, city, rating, photoUrl, openingHours).
 - New endpoint: `POST /api/places/generate` — body `{ city: string }` → triggers the fetch/upsert, returns the resulting `Place[]`. (Deliberately not under `/api/trips` yet — there's no trip concept, no dates, nothing to persist as a `Trip` row.)
 
 **Frontend:**

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { generatePlaces } from '../controllers/placesController';
+import { generatePlaces } from '../controllers/placeController';
 
 const router = Router();
 

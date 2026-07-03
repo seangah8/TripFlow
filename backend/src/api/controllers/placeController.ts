@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { fetchAndUpsertPlaces } from '../services/placesService';
+import { fetchAndUpsertPlaces } from '../services/placeService';
 
 export async function generatePlaces(req: Request, res: Response): Promise<void> {
   const { city } = req.body;

@@ -2,14 +2,14 @@ import { AppDataSource } from '../../config/data-source';
 import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
 import type { Place } from '../../entities/Place';
-import { fetchAndUpsertPlaces } from './placesService';
+import { fetchAndUpsertPlaces } from './placeService';
 import type { TripDayResponse, TripGenerateResponse, TripStopResponse } from '../../types/trip';
 
 const MAX_TRIP_DAYS = 14;
 const PLACES_PER_DAY_TARGET = 5;
 const MIN_PLACES_TARGET = 20;
 
-// Thrown for bad request data — tripsController.ts catches this specifically
+// Thrown for bad request data — tripController.ts catches this specifically
 // to respond 400 instead of 500.
 export class InvalidTripDateRangeError extends Error {}
 
