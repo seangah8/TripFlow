@@ -20,15 +20,12 @@ TripFlow/
 ├── CLAUDE.md               ← this file (workflow guide)
 ├── BLUE_PRINT.md           ← full versioned spec (read this for decisions)
 ├── FUTURE_SCOPE.md         ← things genuinely out of scope
-├── LEARNINGS.md            ← append-only log, one entry per session
 ├── session-notes/          ← one folder per session, one file per completed step
 │   └── session-1/          ← Session N ships version vN (Session 1 → v1, Session 2 → v2, ...)
 │       ├── step-1.md
 │       └── ...
 ├── .claude/
 │   └── skills/
-│       ├── log-learning/
-│       │   └── SKILL.md
 │       └── test-ai-pipeline/
 │           └── SKILL.md
 ├── backend/               ← Node.js + Express + TypeORM
@@ -165,7 +162,6 @@ After completing a step, do all four of the following, in this order, before tou
 | Script | When | Why |
 |--------|------|-----|
 | `/code-review` | After the last step of every session | Checks the diff for correctness bugs |
-| `/log-learning` | After `/code-review` passes | Appends a dated entry to `LEARNINGS.md` |
 | `/security-review` | Before v9 (final submission) | Checks for injection, XSS, exposed credentials |
 | `/test-ai-pipeline` | After any change to the AI pipeline (v5 onward) | Re-runs the pipeline against a fixed test input |
 
@@ -234,7 +230,6 @@ Never write a step file speculatively or mid-step.
 
 | Skill | When to use |
 |-------|-------------|
-| `/log-learning` | End of every session — appends a dated entry to `LEARNINGS.md` |
 | `/test-ai-pipeline` | After any change to the AI pipeline files (v3 for clustering, v5+ for the rest) |
 
 ---
