@@ -21,16 +21,3 @@
   color: white;
   cursor: pointer;
 }
-
-// Temporary — replaced by the real modal overlay styles in Step 10/13.
-.home-page__wizard-placeholder {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-}

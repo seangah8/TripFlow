@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
+import { TripWizardModal } from '../components/wizard/TripWizardModal';
 import '../styles/HomePage.scss';
 
 export function HomePage(): JSX.Element {
@@ -12,15 +13,7 @@ export function HomePage(): JSX.Element {
       <button type="button" className="home-page__add-trip" onClick={() => setIsWizardOpen(true)}>
         Add Trip
       </button>
-      {isWizardOpen && (
-        // Placeholder — Step 10 replaces this with the real <TripWizardModal>.
-        <div className="home-page__wizard-placeholder">
-          <p>Wizard modal placeholder</p>
-          <button type="button" onClick={() => setIsWizardOpen(false)}>
-            Close
-          </button>
-        </div>
-      )}
+      {isWizardOpen && <TripWizardModal onClose={() => setIsWizardOpen(false)} />}
     </div>
   );
 }

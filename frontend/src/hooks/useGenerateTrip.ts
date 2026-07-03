@@ -1,10 +1,11 @@
 import { useMutation, type UseMutationResult } from '@tanstack/react-query';
-import type { Trip } from '../types/trip';
+import type { Trip, TripPreferences } from '../types/trip';
 
 export interface GenerateTripInput {
   city: string;
   startDate: string;
   endDate: string;
+  preferences: TripPreferences;
 }
 
 async function generateTrip(input: GenerateTripInput): Promise<Trip> {
