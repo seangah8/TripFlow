@@ -4,6 +4,7 @@ import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
 import type { Place } from '../../entities/Place';
 import { fetchAndUpsertPlaces } from './placeService';
+import { clusterPlacesByDay } from '../../utils/clustering';
 import type { TripDayResponse, TripGenerateResponse, TripStopResponse } from '../../types/trip';
 
 const MAX_TRIP_DAYS = 14;
@@ -50,18 +51,6 @@ function getDateRange(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-// Deterministic round-robin: place i goes to day (i % totalDays), so reruns
-// of the same fetched pool always land on the same days. Real geographic
-// clustering replaces this in v3.
-function splitPlacesByDay(places: Place[], days: string[]): Map<string, Place[]> {
-  const placesByDay = new Map<string, Place[]>(days.map((date) => [date, []]));
-  places.forEach((place, index) => {
-    const date = days[index % days.length];
-    placesByDay.get(date)!.push(place);
-  });
-  return placesByDay;
-}
-
 interface StopDraft {
   date: string;
   order: number;
@@ -73,7 +62,7 @@ export async function generateTrip(city: string, startDate: string, endDate: str
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
 
   const places = await fetchAndUpsertPlaces(city, targetPlaceCount);
-  const placesByDay = splitPlacesByDay(places, days);
+  const placesByDay = clusterPlacesByDay(places, days);
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.save(
