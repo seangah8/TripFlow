@@ -1,17 +1,30 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { DestinationStep } from './DestinationStep';
+import { PreferencesStep } from './PreferencesStep';
+import type { TripPreferences } from '../../types/trip';
 import '../../styles/wizard.scss';
 
 interface TripWizardModalProps {
   onClose: () => void;
 }
 
+// Neutral starting values for the dropdowns — a native <select> always shows something
+// selected, so these just need to be reasonable defaults, not a "nothing chosen" state.
+// `interests` is the one field with a real empty state (no chips selected).
+const DEFAULT_PREFERENCES: TripPreferences = {
+  vibe: 'moderate',
+  interests: [],
+  groupType: 'solo',
+  budget: 'mid-range',
+};
+
 export function TripWizardModal({ onClose }: TripWizardModalProps): JSX.Element {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [city, setCity] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [preferences, setPreferences] = useState<TripPreferences>(DEFAULT_PREFERENCES);
 
   return (
     <div className="wizard-modal__backdrop" onClick={onClose}>
@@ -34,17 +47,12 @@ export function TripWizardModal({ onClose }: TripWizardModalProps): JSX.Element 
         )}
 
         {step === 2 && (
-          // Placeholder — Step 11 replaces this with the real <PreferencesStep>,
-          // which is also where `preferences` state gets added to this component.
-          <div className="wizard-step">
-            <h2>Preferences (placeholder)</h2>
-            <button type="button" onClick={() => setStep(1)}>
-              Back
-            </button>
-            <button type="button" onClick={() => setStep(3)}>
-              Next
-            </button>
-          </div>
+          <PreferencesStep
+            preferences={preferences}
+            onPreferencesChange={setPreferences}
+            onNext={() => setStep(3)}
+            onBack={() => setStep(1)}
+          />
         )}
 
         {step === 3 && (
@@ -54,6 +62,7 @@ export function TripWizardModal({ onClose }: TripWizardModalProps): JSX.Element 
             <p>
               {city}, {startDate} – {endDate}
             </p>
+            <p>{JSON.stringify(preferences)}</p>
             <button type="button" onClick={() => setStep(2)}>
               Back
             </button>
