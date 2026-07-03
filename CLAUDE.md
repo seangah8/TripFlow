@@ -162,6 +162,7 @@ After completing a step, do all four of the following, in this order, before tou
 | Script | When | Why |
 |--------|------|-----|
 | `/code-review` | After the last step of every session | Checks the diff for correctness bugs |
+| `/sync-blueprint` | After `/code-review` passes, every session | Reconciles `BLUE_PRINT.md`/`CLAUDE.md` with what actually got built, from `session-notes` |
 | `/security-review` | Before v9 (final submission) | Checks for injection, XSS, exposed credentials |
 | `/test-ai-pipeline` | After any change to the AI pipeline (v5 onward) | Re-runs the pipeline against a fixed test input |
 
@@ -231,6 +232,7 @@ Never write a step file speculatively or mid-step.
 | Skill | When to use |
 |-------|-------------|
 | `/test-ai-pipeline` | After any change to the AI pipeline files (v3 for clustering, v5+ for the rest) |
+| `/sync-blueprint` | End of session, after `/code-review` passes — reconciles `BLUE_PRINT.md`/`CLAUDE.md` with what the session's `session-notes` show actually got built |
 
 ---
 
