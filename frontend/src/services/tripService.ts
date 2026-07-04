@@ -1,5 +1,5 @@
 import { apiFetch } from '../lib/api';
-import type { Trip, TripPreferences } from '../types/trip';
+import type { Trip, TripPreferences, TripSummary } from '../types/trip';
 
 // Plain functions that know how to talk to the backend's trip endpoints —
 // deliberately React/TanStack-Query-agnostic, mirroring the backend's own
@@ -21,4 +21,8 @@ export function generateTrip(input: GenerateTripInput): Promise<Trip> {
 
 export function fetchTrip(tripId: string): Promise<Trip> {
   return apiFetch<Trip>(`/api/trips/${tripId}`);
+}
+
+export function fetchTrips(): Promise<TripSummary[]> {
+  return apiFetch<TripSummary[]>('/api/trips');
 }

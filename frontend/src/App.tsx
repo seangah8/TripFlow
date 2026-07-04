@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { JSX } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
+import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { TripPage } from './pages/TripPage';
@@ -39,7 +39,7 @@ function App(): JSX.Element {
 
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<DashboardPage />} />
       <Route path="/trips/:tripId" element={<TripPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

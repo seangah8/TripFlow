@@ -32,3 +32,12 @@ export interface Trip {
   endDate: string;
   days: TripDay[];
 }
+
+// Mirrors the backend's TripSummaryResponse — the lightweight GET /api/trips
+// (dashboard card list) shape, no stops/places.
+export interface TripSummary {
+  tripId: string;
+  city: string;
+  startDate: string;
+  endDate: string;
+}
