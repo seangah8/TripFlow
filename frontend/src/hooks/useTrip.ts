@@ -1,10 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { apiFetch } from '../lib/api';
+import { fetchTrip } from '../services/tripService';
 import type { Trip } from '../types/trip';
-
-function fetchTrip(tripId: string): Promise<Trip> {
-  return apiFetch<Trip>(`/api/trips/${tripId}`);
-}
 
 // useQuery, not useMutation — this is a GET that loads on mount (and whenever `tripId`
 // changes), unlike useGenerateTrip's on-demand POST.
