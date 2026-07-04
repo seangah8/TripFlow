@@ -7,7 +7,7 @@ import {
   TripDateConflictError,
 } from '../services/vacationService';
 import { InvalidTripDateRangeError } from '../services/tripService';
-import { isValidPreferences, UUID_PATTERN, assertStartDateNotInPast, InvalidTripStartDateError } from './tripController';
+import { isValidPreferences, UUID_PATTERN, InvalidTripStartDateError } from './tripController';
 import type { TripGenerateRequest } from '../../types/trip';
 import type { VacationCreateRequest } from '../../types/vacation';
 
@@ -82,7 +82,10 @@ export async function addTripToVacationHandler(req: Request, res: Response): Pro
   }
 
   try {
-    assertStartDateNotInPast(startDate);
+    // assertStartDateNotInPast now runs inside addTripToVacation itself, after its
+    // ownership check — so an unowned/nonexistent vacation always 404s regardless
+    // of what else is wrong with the request, instead of a past-date request
+    // leaking a 400 before ownership is ever checked.
     const trip = await addTripToVacation(req.params.id, city.trim(), startDate, endDate, preferences, req.userId);
     if (!trip) {
       res.status(404).json({ error: 'Vacation not found' });

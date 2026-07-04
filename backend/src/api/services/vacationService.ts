@@ -3,6 +3,7 @@ import { AppDataSource } from '../../config/data-source';
 import { Vacation } from '../../entities/Vacation';
 import { Trip } from '../../entities/Trip';
 import { generateTrip } from './tripService';
+import { assertStartDateNotInPast } from '../controllers/tripController';
 import type { TripGenerateResponse, TripPreferences, TripSummaryResponse } from '../../types/trip';
 import type { VacationResponse } from '../../types/vacation';
 
@@ -24,9 +25,11 @@ export function dateRangesOverlap(aStart: string, aEnd: string, bStart: string, 
 // Checks ownership BEFORE invoking the expensive Places/Claude pipeline, so an
 // invalid/unowned vacationId never triggers wasted external API calls. Returns
 // null (not a thrown error) so the controller can 404, matching getTripById's
-// null convention. The overlap check below runs after ownership (an unowned
-// vacationId should still 404, not 409) but before generateTrip (a conflicting
-// date range should never trigger a wasted Places/Claude call either).
+// null convention. Every other check (past-date, overlap) runs after ownership —
+// an unowned vacationId must always 404 regardless of what else is wrong with
+// the request, not surface a different error first — but before generateTrip
+// (neither a bad date nor a conflicting range should trigger a wasted Places/
+// Claude call).
 export async function addTripToVacation(
   vacationId: string,
   city: string,
@@ -40,6 +43,8 @@ export async function addTripToVacation(
   if (!vacation) {
     return null;
   }
+
+  assertStartDateNotInPast(startDate);
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const siblingTrips = await tripRepository.find({ where: { vacationId } });

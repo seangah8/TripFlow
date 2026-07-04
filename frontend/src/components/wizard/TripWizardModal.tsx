@@ -7,7 +7,7 @@ import type { TripPreferences } from '../../types/trip';
 import '../../styles/wizard.scss';
 
 interface TripWizardModalProps {
-  vacationId?: string;
+  vacationId: string;
   occupiedRanges?: Array<{ startDate: string; endDate: string; city: string }>;
   onClose: () => void;
 }

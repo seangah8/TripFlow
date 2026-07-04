@@ -17,9 +17,17 @@ export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 
 export class InvalidTripStartDateError extends Error {}
 
+// Dates are plain YYYY-MM-DD strings with no timezone info, so the server can't know
+// the client's local "today" exactly. Comparing against UTC-yesterday (not UTC-today)
+// gives a client behind UTC (e.g. UTC-8 in the evening, when UTC has already rolled
+// over) a full day of slack so their genuine local "today" is never wrongly rejected —
+// the tradeoff is being up to a day more lenient than strictly necessary for clients
+// ahead of UTC, which is preferable to falsely blocking a valid same-day pick.
 export function assertStartDateNotInPast(startDate: string): void {
-  const today = new Date().toISOString().slice(0, 10);
-  if (startDate < today) {
+  const yesterday = new Date();
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const earliestValidDate = yesterday.toISOString().slice(0, 10);
+  if (startDate < earliestValidDate) {
     throw new InvalidTripStartDateError('Start date cannot be before today.');
   }
 }
