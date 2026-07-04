@@ -45,6 +45,17 @@
   &:hover {
     color: tokens.$color-primary;
   }
+
+  // Inert while a trip is generating — the click handler already ignores
+  // clicks in this state, this just signals it visually too.
+  &--disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+
+    &:hover {
+      color: tokens.$color-text-muted;
+    }
+  }
 }
 
 // Step-progress indicator: three numbered circles, current step filled in

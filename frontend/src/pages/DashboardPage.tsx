@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { Plus } from 'lucide-react';
 import { NewVacationModal } from '../components/NewVacationModal';
 import { VacationCard } from '../components/VacationCard';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import { useVacations } from '../hooks/useVacations';
 import '../styles/DashboardPage.scss';
 
@@ -12,7 +13,11 @@ export function DashboardPage(): JSX.Element {
 
   return (
     <div className="dashboard-page">
-      {isLoading && <p className="dashboard-page__status">Loading vacations…</p>}
+      {isLoading && (
+        <div className="dashboard-page__status">
+          <LoadingOverlay variant="inline" message="Loading vacations…" />
+        </div>
+      )}
       {isError && <p className="dashboard-page__status">Couldn't load your vacations.</p>}
 
       {vacations && (

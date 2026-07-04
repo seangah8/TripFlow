@@ -34,3 +34,12 @@ body {
   overflow-y: auto;
   background: tokens.$color-bg-app;
 }
+
+// Shown while App.tsx's initial auth check is in flight, before .app-shell
+// (or the login/register routes) exist yet.
+.app-boot-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}

@@ -1,6 +1,5 @@
 import type { JSX } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAddTripToVacation } from '../../hooks/useAddTripToVacation';
+import { LoadingOverlay } from '../LoadingOverlay';
 import type { TripPreferences } from '../../types/trip';
 
 interface ConfirmStepProps {
@@ -8,9 +7,10 @@ interface ConfirmStepProps {
   startDate: string;
   endDate: string;
   preferences: TripPreferences;
-  vacationId: string;
+  isPending: boolean;
+  error: Error | null;
+  onGenerate: () => void;
   onBack: () => void;
-  onClose: () => void;
 }
 
 const INTEREST_LABELS: Record<TripPreferences['interests'][number], string> = {
@@ -40,29 +40,26 @@ const BUDGET_LABELS: Record<TripPreferences['budget'], string> = {
   luxury: 'Luxury',
 };
 
+// The mutation itself (useAddTripToVacation) now lives in TripWizardModal,
+// not here — it needs to see isPending too, to block the modal from being
+// closed mid-generation. This step is purely presentational: summary, the
+// generate action, and (while pending) the loading cover in place of its
+// own content.
 export function ConfirmStep({
   city,
   startDate,
   endDate,
   preferences,
-  vacationId,
+  isPending,
+  error,
+  onGenerate,
   onBack,
-  onClose,
 }: ConfirmStepProps): JSX.Element {
-  const navigate = useNavigate();
-  const { mutate, isPending, error } = useAddTripToVacation(vacationId);
-
-  function handleGenerate(): void {
-    mutate(
-      { city, startDate, endDate, preferences },
-      {
-        // No router state needed — TripPage fetches the trip fresh by id,
-        // so the URL works the same whether you land on it from here or a bookmark.
-        onSuccess: (trip) => {
-          onClose();
-          navigate(`/vacations/${vacationId}/trips/${trip.tripId}`);
-        },
-      },
+  if (isPending) {
+    return (
+      <div className="wizard-step">
+        <LoadingOverlay message="Generating your trip — this can take a minute or two…" />
+      </div>
     );
   }
 
@@ -94,11 +91,11 @@ export function ConfirmStep({
       {error && <p className="wizard-step__error">{error.message}</p>}
 
       <div className="wizard-step__actions">
-        <button type="button" onClick={onBack} disabled={isPending}>
+        <button type="button" onClick={onBack}>
           Back
         </button>
-        <button type="button" onClick={handleGenerate} disabled={isPending}>
-          {isPending ? 'Generating…' : 'Generate my trip'}
+        <button type="button" onClick={onGenerate}>
+          Generate my trip
         </button>
       </div>
     </div>

@@ -1,0 +1,70 @@
+@use './tokens';
+
+.loading-overlay--full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: tokens.$space-md;
+  padding: tokens.$space-lg;
+}
+
+.loading-route {
+  width: 180px;
+  height: 72px;
+}
+
+.loading-route__path {
+  fill: none;
+  stroke: tokens.$color-primary;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  // pathLength="100" (set on the element) normalizes the path to 100 units
+  // regardless of its actual curve length, so the dash math below is exact
+  // without needing to measure the real geometry.
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: loading-route-draw 1.8s ease-in-out infinite;
+}
+
+.loading-route__pin {
+  fill: tokens.$color-primary;
+}
+
+@keyframes loading-route-draw {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  50% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -100;
+  }
+}
+
+.loading-overlay__message {
+  margin: 0;
+  color: tokens.$color-text-muted;
+}
+
+.loading-overlay--inline {
+  display: inline-flex;
+  align-items: center;
+  gap: tokens.$space-sm;
+}
+
+.loading-overlay__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid tokens.$color-border;
+  border-top-color: tokens.$color-primary;
+  border-radius: 50%;
+  animation: loading-overlay-spin 0.7s linear infinite;
+}
+
+@keyframes loading-overlay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

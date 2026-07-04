@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DestinationStep } from './DestinationStep';
 import { PreferencesStep } from './PreferencesStep';
 import { ConfirmStep } from './ConfirmStep';
+import { useAddTripToVacation } from '../../hooks/useAddTripToVacation';
 import type { TripPreferences } from '../../types/trip';
 import '../../styles/wizard.scss';
 
@@ -28,12 +30,44 @@ export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWiz
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [preferences, setPreferences] = useState<TripPreferences>(DEFAULT_PREFERENCES);
+  const navigate = useNavigate();
+  // Lifted up from ConfirmStep (rather than owned there) so this modal can see
+  // isPending and block closing while a generation is in flight — trip
+  // generation can take minutes, and letting someone bounce out of the wizard
+  // mid-generation (no confirmation it's still happening, no automatic
+  // redirect once it's done) was the whole reason for this step.
+  const { mutate, isPending, error } = useAddTripToVacation(vacationId);
+
+  function handleGenerate(): void {
+    mutate(
+      { city, startDate, endDate, preferences },
+      {
+        // No router state needed — TripPage fetches the trip fresh by id,
+        // so the URL works the same whether you land on it from here or a bookmark.
+        onSuccess: (trip) => {
+          onClose();
+          navigate(`/vacations/${vacationId}/trips/${trip.tripId}`);
+        },
+      },
+    );
+  }
+
+  function handleClose(): void {
+    if (!isPending) {
+      onClose();
+    }
+  }
 
   return (
-    <div className="wizard-modal__backdrop" onClick={onClose}>
+    <div className="wizard-modal__backdrop" onClick={handleClose}>
       {/* Stop propagation so clicking inside the modal doesn't bubble up and close it. */}
       <div className="wizard-modal" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="wizard-modal__close" onClick={onClose} aria-label="Close">
+        <button
+          type="button"
+          className={isPending ? 'wizard-modal__close wizard-modal__close--disabled' : 'wizard-modal__close'}
+          onClick={handleClose}
+          aria-label="Close"
+        >
           ×
         </button>
 
@@ -78,9 +112,10 @@ export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWiz
             startDate={startDate}
             endDate={endDate}
             preferences={preferences}
-            vacationId={vacationId}
+            isPending={isPending}
+            error={error}
+            onGenerate={handleGenerate}
             onBack={() => setStep(2)}
-            onClose={onClose}
           />
         )}
       </div>

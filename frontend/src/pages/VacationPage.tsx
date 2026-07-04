@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { BackButton } from '../components/BackButton';
 import { TripCard } from '../components/TripCard';
 import { TripWizardModal } from '../components/wizard/TripWizardModal';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import { useVacation } from '../hooks/useVacation';
 import { getVacationLabel } from '../utils/vacationLabel';
 import '../styles/VacationPage.scss';
@@ -15,7 +16,11 @@ export function VacationPage(): JSX.Element {
   const { data: vacation, isLoading, isError, error } = useVacation(vacationId);
 
   if (isLoading) {
-    return <p className="vacation-page__status">Loading vacation…</p>;
+    return (
+      <div className="vacation-page__status">
+        <LoadingOverlay variant="inline" message="Loading vacation…" />
+      </div>
+    );
   }
 
   if (isError || !vacation) {

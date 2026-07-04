@@ -6,6 +6,7 @@ import { BackButton } from '../components/BackButton';
 import { DayTimeline } from '../components/DayTimeline';
 import { PlacesMap } from '../components/PlacesMap';
 import { StopList } from '../components/StopList';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import { useTrip } from '../hooks/useTrip';
 import { buildGoogleMapsDirectionsUrl } from '../utils/googleMapsExport';
 import type { TripStop } from '../types/trip';
@@ -40,7 +41,11 @@ export function TripPage(): JSX.Element {
   }, [trip, selectedDate]);
 
   if (isLoading) {
-    return <p className="trip-page__status">Loading trip…</p>;
+    return (
+      <div className="trip-page__status">
+        <LoadingOverlay variant="inline" message="Loading trip…" />
+      </div>
+    );
   }
 
   if (isError || !trip) {

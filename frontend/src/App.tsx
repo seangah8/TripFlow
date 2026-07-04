@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { TripPage } from './pages/TripPage';
 import { VacationPage } from './pages/VacationPage';
 import { Header } from './components/Header';
+import { LoadingOverlay } from './components/LoadingOverlay';
 import { useMe } from './hooks/useMe';
 import { useAuthStore } from './store/authStore';
 
@@ -26,7 +27,11 @@ function App(): JSX.Element {
   }, [isSuccess, isError, data, setUser, clearUser]);
 
   if (isLoading) {
-    return <p>Loading…</p>;
+    return (
+      <div className="app-boot-loading">
+        <LoadingOverlay variant="inline" message="Loading…" />
+      </div>
+    );
   }
 
   // Not logged in — every path except /register falls back to the login
