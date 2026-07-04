@@ -30,8 +30,11 @@ export class Place {
   @Column('decimal', { precision: 3, scale: 1, nullable: true, transformer: numericTransformer })
   rating!: number | null;
 
+  // Google's photo *resource name* (e.g. "places/ABC/photos/XYZ"), not a direct
+  // image URL — the frontend builds the actual URL using its own public Maps
+  // key, so the backend's secret GOOGLE_PLACES_API_KEY never reaches the client.
   @Column('varchar', { nullable: true })
-  photoUrl!: string | null;
+  photoName!: string | null;
 
   @Column('jsonb', { nullable: true })
   openingHours!: Record<string, unknown> | null;

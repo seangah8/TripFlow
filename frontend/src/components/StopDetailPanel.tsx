@@ -1,5 +1,7 @@
 import type { JSX } from 'react';
 import type { TripStop } from '../types/trip';
+import { buildPlacePhotoUrl } from '../utils/placePhoto';
+import { NoPhotoIcon } from './NoPhotoIcon';
 import '../styles/StopDetailPanel.scss';
 
 interface StopDetailPanelProps {
@@ -17,6 +19,17 @@ export function StopDetailPanel({ stop, onBack }: StopDetailPanelProps): JSX.Ele
       <p className="stop-detail-panel__category">{stop.place.category ?? 'Uncategorized'}</p>
       {stop.estimatedMinutes !== null && <p className="stop-detail-panel__minutes">~{stop.estimatedMinutes} min</p>}
       {stop.reasoning !== null && <p className="stop-detail-panel__reasoning">{stop.reasoning}</p>}
+      {stop.place.photoName ? (
+        <img
+          className="stop-detail-panel__photo"
+          src={buildPlacePhotoUrl(stop.place.photoName)}
+          alt={stop.place.name}
+        />
+      ) : (
+        <div className="stop-detail-panel__photo-fallback">
+          <NoPhotoIcon className="stop-detail-panel__fallback-icon" />
+        </div>
+      )}
     </div>
   );
 }

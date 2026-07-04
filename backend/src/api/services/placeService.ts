@@ -38,7 +38,7 @@ export function perQueryTarget(targetCount: number, queryCount: number): number 
 }
 
 // Only requesting the fields we actually store — Google bills searchText by
-// which fields are in this mask, so anything unused here (e.g. photos) costs nothing.
+// which fields are in this mask, so anything unused here costs nothing.
 // `nextPageToken` must be listed explicitly too, like any other response field.
 const FIELD_MASK = [
   'places.id',
@@ -47,6 +47,7 @@ const FIELD_MASK = [
   'places.rating',
   'places.regularOpeningHours',
   'places.primaryTypeDisplayName',
+  'places.photos',
   'nextPageToken',
 ].join(',');
 
@@ -155,6 +156,9 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20, inter
       rating: googlePlace.rating ?? null,
       openingHours: googlePlace.regularOpeningHours ?? null,
       category: googlePlace.primaryTypeDisplayName?.text ?? null,
+      // Just the first photo's resource name — the frontend builds the actual
+      // image URL from this (see frontend/src/utils/placePhoto.ts).
+      photoName: googlePlace.photos?.[0]?.name ?? null,
     }));
 
   const placeRepository = AppDataSource.getRepository(Place);

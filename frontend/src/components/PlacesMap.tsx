@@ -70,7 +70,7 @@ export function PlacesMap({ stops, selectedStopId, onSelectStop }: PlacesMapProp
             position={{ lat: stop.place.lat, lng: stop.place.lng }}
             onClick={() => onSelectStop(stop.tripStopId)}
           >
-            <PlacePin photoUrl={stop.place.photoUrl} selected={stop.tripStopId === selectedStopId} />
+            <PlacePin photoName={stop.place.photoName} selected={stop.tripStopId === selectedStopId} />
           </AdvancedMarker>
         ))}
         <FitBoundsToPlaces stops={stops} />

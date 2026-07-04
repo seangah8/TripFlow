@@ -11,6 +11,14 @@ export interface GooglePlaceLocation {
   longitude: number;
 }
 
+// Only `name` (the photo *resource name*, e.g. "places/ABC/photos/XYZ") is stored —
+// it's exchanged for an actual image by the frontend via Google's photo media
+// endpoint, using the public Maps key. widthPx/heightPx/authorAttributions aren't
+// requested since nothing here uses them.
+export interface GooglePlacePhoto {
+  name: string;
+}
+
 export interface GooglePlace {
   id: string;
   displayName: GooglePlaceText;
@@ -21,6 +29,7 @@ export interface GooglePlace {
   // Stored as-is in the `openingHours` jsonb column — not parsed until v8.
   regularOpeningHours?: Record<string, unknown>;
   primaryTypeDisplayName?: GooglePlaceText;
+  photos?: GooglePlacePhoto[];
 }
 
 export interface GooglePlacesSearchTextResponse {

@@ -11,9 +11,9 @@ const CLAUDE_MODEL = 'claude-sonnet-5';
 // string (~75 tokens) plus an estimatedMinutes value, not just a bare id.
 const MAX_OUTPUT_TOKENS = 8192;
 
-// v6's bounds for estimatedMinutes — also enforced defensively in code (see
-// extractSelectedPlaces below), since the request schema's minimum/maximum/
-// multipleOf aren't guaranteed to be enforced server-side the way type/required are.
+// v6's bounds for estimatedMinutes/reasoning — enforced entirely in code (see
+// extractSelectedPlaces below) because Anthropic's structured-output schema
+// rejects minimum/maximum/multipleOf/maxLength outright (a 400 at request time).
 const MIN_ESTIMATED_MINUTES = 15;
 const MAX_ESTIMATED_MINUTES = 240;
 const ESTIMATED_MINUTES_STEP = 15;
@@ -25,6 +25,11 @@ const MAX_REASONING_LENGTH = 300;
 // uncurated pool.
 export class ClaudeCurationError extends Error {}
 
+// Anthropic's structured-output json_schema rejects minimum/maximum/multipleOf on
+// 'integer' properties and (per the same restriction family) maxLength on 'string'
+// properties outright — a 400 at request time, not a silently-unenforced constraint.
+// The 15-240/step-15/300-char bounds are therefore enforced entirely in code, in
+// extractSelectedPlaces below, and only described to Claude via the system prompt.
 const CURATION_SCHEMA = {
   type: 'object',
   properties: {
@@ -34,13 +39,8 @@ const CURATION_SCHEMA = {
         type: 'object',
         properties: {
           googlePlaceId: { type: 'string' },
-          estimatedMinutes: {
-            type: 'integer',
-            minimum: MIN_ESTIMATED_MINUTES,
-            maximum: MAX_ESTIMATED_MINUTES,
-            multipleOf: ESTIMATED_MINUTES_STEP,
-          },
-          reasoning: { type: 'string', maxLength: MAX_REASONING_LENGTH },
+          estimatedMinutes: { type: 'integer' },
+          reasoning: { type: 'string' },
         },
         required: ['googlePlaceId', 'estimatedMinutes', 'reasoning'],
         additionalProperties: false,
@@ -51,7 +51,7 @@ const CURATION_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-// Trims each Place down to only what's relevant to a curation decision — no photoUrl,
+// Trims each Place down to only what's relevant to a curation decision — no photoName,
 // openingHours, or internal id, which would just cost tokens for no benefit here.
 function toClaudePlaceSummary(place: Place): ClaudePlaceSummary {
   return {
@@ -138,9 +138,10 @@ export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCurated
     throw new ClaudeCurationError('Claude curation response did not match the expected schema');
   }
 
-  // Defensive validation/normalization on top of the request schema — the json_schema
-  // structured-output constraints (minimum/maximum/multipleOf/maxLength) aren't guaranteed
-  // to be server-enforced the same way type/required are.
+  // Defensive validation/normalization — the request schema only asserts type/required
+  // (Anthropic rejects minimum/maximum/multipleOf/maxLength on the schema itself), so the
+  // 15-240/step-15/300-char bounds are enforced here instead, based only on the prompt's
+  // instructions to Claude.
   const entries: unknown[] = (parsed as CurationOutput).selectedPlaces;
   return entries
     .filter(

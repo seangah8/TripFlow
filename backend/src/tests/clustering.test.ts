@@ -10,7 +10,7 @@ function makePlace(id: string, lat: number, lng: number, rating: number | null =
     lng,
     city: 'Test City',
     rating,
-    photoUrl: null,
+    photoName: null,
     openingHours: null,
     category: null,
   };

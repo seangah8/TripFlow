@@ -13,7 +13,7 @@ export interface CurationOutput {
   selectedPlaces: ClaudeCuratedStop[];
 }
 
-// Trimmed per-place summary sent to Claude for a curation decision — no photoUrl,
+// Trimmed per-place summary sent to Claude for a curation decision — no photoName,
 // openingHours, or internal id, which would cost tokens without helping the decision.
 export interface ClaudePlaceSummary {
   googlePlaceId: string;

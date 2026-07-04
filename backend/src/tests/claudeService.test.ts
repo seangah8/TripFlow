@@ -19,7 +19,7 @@ function makePlace(googlePlaceId: string, overrides: Partial<Place> = {}): Place
     lng: 0,
     city: 'Test City',
     rating: null,
-    photoUrl: 'https://example.com/photo.jpg',
+    photoName: 'places/test-id/photos/test-photo',
     openingHours: { periods: [] },
     category: null,
     ...overrides,
@@ -80,10 +80,10 @@ describe('buildUserPrompt', () => {
     expect(prompt).toContain('"name":"Louvre"');
     expect(prompt).toContain('"category":"Museum"');
     expect(prompt).toContain('"rating":4.7');
-    // photoUrl/openingHours/id are not relevant to curation and should never reach the prompt.
-    expect(prompt).not.toContain('photoUrl');
+    // photoName/openingHours/id are not relevant to curation and should never reach the prompt.
+    expect(prompt).not.toContain('photoName');
     expect(prompt).not.toContain('openingHours');
-    expect(prompt).not.toContain('example.com/photo.jpg');
+    expect(prompt).not.toContain('test-photo');
   });
 });
 

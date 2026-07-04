@@ -19,6 +19,31 @@
   }
 }
 
+.stop-detail-panel__photo {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+}
+
+.stop-detail-panel__photo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  margin-top: 0.75rem;
+}
+
+.stop-detail-panel__fallback-icon {
+  width: 30%;
+  height: 30%;
+  color: #9ca3af;
+}
+
 .stop-detail-panel__name {
   font-size: 1.1rem;
   margin: 0;
