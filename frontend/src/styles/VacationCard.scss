@@ -1,0 +1,22 @@
+.vacation-card {
+  display: block;
+  padding: 1rem 1.25rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: #2563eb;
+  }
+}
+
+.vacation-card__name {
+  margin: 0 0 0.25rem;
+}
+
+.vacation-card__trip-count {
+  margin: 0;
+  color: #666;
+}
