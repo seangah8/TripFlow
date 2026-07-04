@@ -1,0 +1,43 @@
+.vacation-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.vacation-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.vacation-page__add-city {
+  align-self: flex-start;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.vacation-page__status {
+  color: #666;
+}
+
+.vacation-page__error {
+  color: crimson;
+}
+
+.vacation-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
