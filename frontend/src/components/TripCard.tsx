@@ -5,11 +5,12 @@ import '../styles/TripCard.scss';
 
 interface TripCardProps {
   trip: TripSummary;
+  vacationId: string;
 }
 
-export function TripCard({ trip }: TripCardProps): JSX.Element {
+export function TripCard({ trip, vacationId }: TripCardProps): JSX.Element {
   return (
-    <Link to={`/trips/${trip.tripId}`} className="trip-card">
+    <Link to={`/vacations/${vacationId}/trips/${trip.tripId}`} className="trip-card">
       <h3 className="trip-card__city">{trip.city}</h3>
       <p className="trip-card__dates">
         {trip.startDate} – {trip.endDate}

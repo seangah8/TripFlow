@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
-import { TripWizardModal } from '../components/wizard/TripWizardModal';
-import { TripCard } from '../components/TripCard';
-import { useTrips } from '../hooks/useTrips';
+import { NewVacationModal } from '../components/NewVacationModal';
+import { VacationCard } from '../components/VacationCard';
+import { useVacations } from '../hooks/useVacations';
 import { useLogout } from '../hooks/useLogout';
 import { useAuthStore } from '../store/authStore';
 import '../styles/DashboardPage.scss';
 
 export function DashboardPage(): JSX.Element {
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isNewVacationOpen, setIsNewVacationOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
-  const { data: trips, isLoading, isError } = useTrips();
+  const { data: vacations, isLoading, isError } = useVacations();
 
   return (
     <div className="dashboard-page">
@@ -25,24 +25,24 @@ export function DashboardPage(): JSX.Element {
         </div>
       </header>
 
-      <button type="button" className="dashboard-page__add-trip" onClick={() => setIsWizardOpen(true)}>
-        Add Trip
+      <button type="button" className="dashboard-page__new-vacation" onClick={() => setIsNewVacationOpen(true)}>
+        New Vacation
       </button>
 
-      {isLoading && <p className="dashboard-page__status">Loading trips…</p>}
-      {isError && <p className="dashboard-page__status">Couldn't load your trips.</p>}
-      {trips && trips.length === 0 && (
-        <p className="dashboard-page__status">No trips yet — add your first one.</p>
+      {isLoading && <p className="dashboard-page__status">Loading vacations…</p>}
+      {isError && <p className="dashboard-page__status">Couldn't load your vacations.</p>}
+      {vacations && vacations.length === 0 && (
+        <p className="dashboard-page__status">No vacations yet — add your first one.</p>
       )}
-      {trips && trips.length > 0 && (
+      {vacations && vacations.length > 0 && (
         <div className="dashboard-page__grid">
-          {trips.map((trip) => (
-            <TripCard key={trip.tripId} trip={trip} />
+          {vacations.map((vacation) => (
+            <VacationCard key={vacation.vacationId} vacation={vacation} />
           ))}
         </div>
       )}
 
-      {isWizardOpen && <TripWizardModal onClose={() => setIsWizardOpen(false)} />}
+      {isNewVacationOpen && <NewVacationModal onClose={() => setIsNewVacationOpen(false)} />}
     </div>
   );
 }
