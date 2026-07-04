@@ -5,6 +5,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { Place } from '../entities/Place';
 import { Trip } from '../entities/Trip';
 import { TripStop } from '../entities/TripStop';
+import { User } from '../entities/User';
 
 config();
 
@@ -17,5 +18,5 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   namingStrategy: new SnakeNamingStrategy(),
   synchronize: true,
-  entities: [Place, Trip, TripStop],
+  entities: [Place, Trip, TripStop, User],
 });

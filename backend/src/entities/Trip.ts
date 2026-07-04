@@ -1,8 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import type { TripPreferences } from '../types/trip';
-
-// No `owner` column yet — the `users` table doesn't exist until the
-// persistence/auth session, so there's nothing for it to reference.
+import { User } from './User';
 
 // TypeORM populates these fields at runtime (not via constructor), so the
 // `!` assertions below are safe despite strict property initialization.
@@ -24,6 +22,15 @@ export class Trip {
   // has nothing to populate this with yet.
   @Column('jsonb', { nullable: true })
   preferences!: TripPreferences | null;
+
+  @Column('uuid')
+  ownerId!: string;
+
+  // Deleting a user deletes their trips (TripStop already cascades off Trip,
+  // so this keeps the whole ownership chain consistent end to end).
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' })
+  owner!: User;
 
   @CreateDateColumn()
   createdAt!: Date;
