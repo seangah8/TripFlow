@@ -14,10 +14,19 @@ export async function createVacation(name: string | undefined, ownerId: string):
   return { vacationId: vacation.id, name: vacation.name, createdAt: vacation.createdAt.toISOString(), trips: [] };
 }
 
+export class TripDateConflictError extends Error {}
+
+// Inclusive-range overlap on two YYYY-MM-DD strings.
+export function dateRangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart <= bEnd && bStart <= aEnd;
+}
+
 // Checks ownership BEFORE invoking the expensive Places/Claude pipeline, so an
 // invalid/unowned vacationId never triggers wasted external API calls. Returns
 // null (not a thrown error) so the controller can 404, matching getTripById's
-// null convention.
+// null convention. The overlap check below runs after ownership (an unowned
+// vacationId should still 404, not 409) but before generateTrip (a conflicting
+// date range should never trigger a wasted Places/Claude call either).
 export async function addTripToVacation(
   vacationId: string,
   city: string,
@@ -31,6 +40,16 @@ export async function addTripToVacation(
   if (!vacation) {
     return null;
   }
+
+  const tripRepository = AppDataSource.getRepository(Trip);
+  const siblingTrips = await tripRepository.find({ where: { vacationId } });
+  const conflict = siblingTrips.find((sibling) => dateRangesOverlap(startDate, endDate, sibling.startDate, sibling.endDate));
+  if (conflict) {
+    throw new TripDateConflictError(
+      `These dates overlap with your existing trip to ${conflict.city} (${conflict.startDate} – ${conflict.endDate}).`,
+    );
+  }
+
   return generateTrip(city, startDate, endDate, preferences, ownerId, vacationId);
 }
 

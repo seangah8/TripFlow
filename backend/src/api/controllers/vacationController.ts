@@ -4,9 +4,10 @@ import {
   addTripToVacation,
   listVacationsByOwner,
   getVacationById,
+  TripDateConflictError,
 } from '../services/vacationService';
 import { InvalidTripDateRangeError } from '../services/tripService';
-import { isValidPreferences, UUID_PATTERN } from './tripController';
+import { isValidPreferences, UUID_PATTERN, assertStartDateNotInPast, InvalidTripStartDateError } from './tripController';
 import type { TripGenerateRequest } from '../../types/trip';
 import type { VacationCreateRequest } from '../../types/vacation';
 
@@ -81,6 +82,7 @@ export async function addTripToVacationHandler(req: Request, res: Response): Pro
   }
 
   try {
+    assertStartDateNotInPast(startDate);
     const trip = await addTripToVacation(req.params.id, city.trim(), startDate, endDate, preferences, req.userId);
     if (!trip) {
       res.status(404).json({ error: 'Vacation not found' });
@@ -88,8 +90,12 @@ export async function addTripToVacationHandler(req: Request, res: Response): Pro
     }
     res.json(trip);
   } catch (error) {
-    if (error instanceof InvalidTripDateRangeError) {
+    if (error instanceof InvalidTripDateRangeError || error instanceof InvalidTripStartDateError) {
       res.status(400).json({ error: error.message });
+      return;
+    }
+    if (error instanceof TripDateConflictError) {
+      res.status(409).json({ error: error.message });
       return;
     }
     console.error('Failed to add trip to vacation', error);

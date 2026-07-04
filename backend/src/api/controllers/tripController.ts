@@ -15,6 +15,15 @@ const VALID_BUDGETS = new Set<TripPreferences['budget']>(['budget', 'mid-range',
 
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export class InvalidTripStartDateError extends Error {}
+
+export function assertStartDateNotInPast(startDate: string): void {
+  const today = new Date().toISOString().slice(0, 10);
+  if (startDate < today) {
+    throw new InvalidTripStartDateError('Start date cannot be before today.');
+  }
+}
+
 // Real request boundary, same reasoning as the date validation below: don't trust the
 // wizard's own client-side validation to have kept the shape honest.
 // Exported so vacationController.ts's "add a city" handler can reuse this instead of
@@ -58,10 +67,11 @@ export async function generateTripHandler(req: Request, res: Response): Promise<
   }
 
   try {
+    assertStartDateNotInPast(startDate);
     const trip = await generateTrip(city.trim(), startDate, endDate, preferences, req.userId);
     res.json(trip);
   } catch (error) {
-    if (error instanceof InvalidTripDateRangeError) {
+    if (error instanceof InvalidTripDateRangeError || error instanceof InvalidTripStartDateError) {
       res.status(400).json({ error: error.message });
       return;
     }
