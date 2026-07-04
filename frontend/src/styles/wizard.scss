@@ -1,3 +1,5 @@
+@use './tokens';
+
 .wizard-modal__backdrop {
   position: fixed;
   inset: 0;
@@ -24,8 +26,9 @@
   max-height: 90vh;
   overflow-y: auto;
   padding: 2rem 1.5rem 1.5rem;
-  border-radius: 12px;
-  background: white;
+  border-radius: tokens.$radius-md;
+  background: tokens.$color-bg;
+  box-shadow: tokens.$shadow-md;
 }
 
 .wizard-modal__close {
@@ -36,7 +39,40 @@
   background: none;
   font-size: 1.25rem;
   line-height: 1;
+  color: tokens.$color-text-muted;
   cursor: pointer;
+
+  &:hover {
+    color: tokens.$color-primary;
+  }
+}
+
+// Step-progress indicator: three numbered circles, current step filled in
+// the primary color, the rest a plain outline.
+.wizard-modal__steps {
+  display: flex;
+  justify-content: center;
+  gap: tokens.$space-sm;
+  margin-bottom: tokens.$space-md;
+}
+
+.wizard-modal__step {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid tokens.$color-border;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: tokens.$color-text-muted;
+
+  &--active {
+    border-color: tokens.$color-primary;
+    background: tokens.$color-primary;
+    color: white;
+  }
 }
 
 .wizard-step {
@@ -46,6 +82,30 @@
 
   h2 {
     margin: 0 0 0.25rem;
+  }
+
+  // Shared button baseline — a bordered "secondary" look by default. The
+  // wizard's one primary action per step (submit on step 1, the last button
+  // in .wizard-step__actions on steps 2/3) gets the filled-primary override
+  // below, without needing extra classNames on each step component.
+  button {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid tokens.$color-border;
+    border-radius: tokens.$radius-sm;
+    background: tokens.$color-bg;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  button[type='submit'] {
+    border: none;
+    background: tokens.$color-primary;
+    color: white;
   }
 }
 
@@ -69,17 +129,68 @@
 }
 
 .wizard-step__chip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.4rem 0.85rem;
-  border: 1px solid #ccc;
+  border: 1px solid tokens.$color-border;
   border-radius: 999px;
-  background: white;
+  background: tokens.$color-bg;
   cursor: pointer;
 
+  // Icons use stroke="currentColor" by default, so they follow this color
+  // automatically — no separate icon color rule needed.
   &--selected {
-    border-color: #2563eb;
-    background: #eff6ff;
-    color: #2563eb;
+    border-color: tokens.$color-primary;
+    background: tokens.$color-primary-light;
+    color: tokens.$color-primary;
   }
+}
+
+.wizard-step__input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid tokens.$color-border;
+  border-radius: tokens.$radius-sm;
+  background: tokens.$color-bg;
+  font: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: tokens.$color-primary;
+    box-shadow: 0 0 0 3px tokens.$color-primary-light;
+  }
+}
+
+// react-datepicker's calendar popup — portalled to #datepicker-portal (see
+// above), so these are global overrides of its own class names rather than
+// scoped component styles.
+.react-datepicker {
+  border: 1px solid tokens.$color-border;
+  border-radius: tokens.$radius-sm;
+  font-family: tokens.$font-body;
+}
+
+.react-datepicker__header {
+  background: tokens.$color-primary-light;
+  border-bottom: 1px solid tokens.$color-border;
+}
+
+.react-datepicker__day:hover {
+  background: tokens.$color-primary-light;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: tokens.$color-primary;
+  color: white;
+
+  &:hover {
+    background: tokens.$color-primary;
+  }
+}
+
+.react-datepicker__triangle {
+  display: none;
 }
 
 .wizard-step__field {
@@ -90,7 +201,16 @@
 
   select {
     padding: 0.4rem;
+    border: 1px solid tokens.$color-border;
+    border-radius: tokens.$radius-sm;
+    background: tokens.$color-bg;
     font-weight: normal;
+
+    &:focus {
+      outline: none;
+      border-color: tokens.$color-primary;
+      box-shadow: 0 0 0 3px tokens.$color-primary-light;
+    }
   }
 }
 
@@ -98,6 +218,12 @@
   display: flex;
   justify-content: space-between;
   margin-top: 0.5rem;
+
+  button:last-child {
+    border: none;
+    background: tokens.$color-primary;
+    color: white;
+  }
 }
 
 .wizard-step__summary {
@@ -108,7 +234,7 @@
 
   dt {
     font-weight: 600;
-    color: #666;
+    color: tokens.$color-text-muted;
   }
 
   dd {

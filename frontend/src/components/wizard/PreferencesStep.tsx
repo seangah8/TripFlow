@@ -1,4 +1,6 @@
 import type { JSX } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import { Landmark, Martini, ShoppingBag, Trees, UtensilsCrossed } from 'lucide-react';
 import type { TripPreferences } from '../../types/trip';
 
 interface PreferencesStepProps {
@@ -10,12 +12,12 @@ interface PreferencesStepProps {
 
 type Interest = TripPreferences['interests'][number];
 
-const INTERESTS: Array<{ value: Interest; label: string }> = [
-  { value: 'museums', label: 'Museums' },
-  { value: 'food', label: 'Food & Drink' },
-  { value: 'nature', label: 'Nature' },
-  { value: 'nightlife', label: 'Nightlife' },
-  { value: 'shopping', label: 'Shopping' },
+const INTERESTS: Array<{ value: Interest; label: string; icon: LucideIcon }> = [
+  { value: 'museums', label: 'Museums', icon: Landmark },
+  { value: 'food', label: 'Food & Drink', icon: UtensilsCrossed },
+  { value: 'nature', label: 'Nature', icon: Trees },
+  { value: 'nightlife', label: 'Nightlife', icon: Martini },
+  { value: 'shopping', label: 'Shopping', icon: ShoppingBag },
 ];
 
 const VIBES: Array<{ value: TripPreferences['vibe']; label: string }> = [
@@ -58,7 +60,7 @@ export function PreferencesStep({
 
       <fieldset className="wizard-step__interests">
         <legend>Interests</legend>
-        {INTERESTS.map(({ value, label }) => (
+        {INTERESTS.map(({ value, label, icon: Icon }) => (
           <button
             key={value}
             type="button"
@@ -69,6 +71,7 @@ export function PreferencesStep({
             }
             onClick={() => toggleInterest(value)}
           >
+            <Icon size={16} />
             {label}
           </button>
         ))}

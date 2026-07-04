@@ -99,6 +99,7 @@ export function DestinationStep({
       <h2>Destination &amp; Dates</h2>
       <input
         type="text"
+        className="wizard-step__input"
         value={city}
         onChange={(event) => onCityChange(event.target.value)}
         placeholder="Enter a city"
@@ -110,7 +111,7 @@ export function DestinationStep({
         excludeDateIntervals={excludedIntervals}
         placeholderText="Start date"
         aria-label="Start date"
-
+        className="wizard-step__input"
         portalId="datepicker-portal"
       />
       <DatePicker
@@ -120,6 +121,7 @@ export function DestinationStep({
         excludeDateIntervals={excludedIntervals}
         placeholderText="End date"
         aria-label="End date"
+        className="wizard-step__input"
         portalId="datepicker-portal"
       />
       {validationError && <p className="wizard-step__error">{validationError}</p>}

@@ -37,6 +37,19 @@ export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWiz
           ×
         </button>
 
+        <div className="wizard-modal__steps" aria-hidden="true">
+          {[1, 2, 3].map((stepNumber) => (
+            <span
+              key={stepNumber}
+              className={
+                stepNumber === step ? 'wizard-modal__step wizard-modal__step--active' : 'wizard-modal__step'
+              }
+            >
+              {stepNumber}
+            </span>
+          ))}
+        </div>
+
         {step === 1 && (
           <DestinationStep
             city={city}
