@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGenerateTrip } from '../../hooks/useGenerateTrip';
+import { useAddTripToVacation } from '../../hooks/useAddTripToVacation';
 import type { TripPreferences } from '../../types/trip';
 
 interface ConfirmStepProps {
@@ -8,6 +9,7 @@ interface ConfirmStepProps {
   startDate: string;
   endDate: string;
   preferences: TripPreferences;
+  vacationId?: string;
   onBack: () => void;
   onClose: () => void;
 }
@@ -44,21 +46,27 @@ export function ConfirmStep({
   startDate,
   endDate,
   preferences,
+  vacationId,
   onBack,
   onClose,
 }: ConfirmStepProps): JSX.Element {
   const navigate = useNavigate();
-  const { mutate, isPending, error } = useGenerateTrip();
+  // Both hooks are called unconditionally (Rules of Hooks) — only the mutation
+  // actually matching this wizard's mode (standalone vs. inside a vacation) is
+  // used below.
+  const generateTripMutation = useGenerateTrip();
+  const addTripMutation = useAddTripToVacation(vacationId ?? '');
+  const { mutate, isPending, error } = vacationId ? addTripMutation : generateTripMutation;
 
   function handleGenerate(): void {
     mutate(
       { city, startDate, endDate, preferences },
       {
-        // No router state needed — TripPage fetches the trip fresh by id (Step 8),
+        // No router state needed — TripPage fetches the trip fresh by id,
         // so the URL works the same whether you land on it from here or a bookmark.
         onSuccess: (trip) => {
           onClose();
-          navigate(`/trips/${trip.tripId}`);
+          navigate(vacationId ? `/vacations/${vacationId}/trips/${trip.tripId}` : `/trips/${trip.tripId}`);
         },
       },
     );
