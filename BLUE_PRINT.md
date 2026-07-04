@@ -114,8 +114,8 @@ the chosen interests, not a generic "tourist attractions" search. Generating nav
   wizard's step/city/dates/preferences state lives in plain `useState` in the modal's container
   component, prop-drilled one level to its 3 step children (not deep prop-drilling, since they're
   direct children). Zustand is deferred to whenever something genuinely needs cross-tree shared
-  state instead (the likely first real case is v6's active day / selected stop, shared between
-  sibling map and stop-list components).
+  state instead — v6 was the speculated first case for this, but turned out not to need it either
+  (see v6's Frontend section); still deferred.
 
 ---
 
@@ -135,14 +135,21 @@ the chosen interests, not a generic "tourist attractions" search. Generating nav
 
 ### v6 — Time estimates, reasoning, and the stop detail panel
 
-**User-facing outcome:** Click a stop (from the day's list or its map marker) and a detail panel opens: name, category, estimated time to spend there, and Claude's reasoning for why it's on the trip.
+**User-facing outcome:** Click a stop (from the day's list or its map marker) and a detail panel opens: name, category, estimated time to spend there, and Claude's reasoning for why it's on the trip. Map pins now show the place's photo.
 
 **Backend:**
-- Claude's response (Section 5's schema) gains `estimatedMinutes` and `reasoning` per selected stop, in the same v5 call — no new API round trip, just a richer response schema.
+- Claude's response (Section 5's schema) gains `estimatedMinutes` (15–240, 15-minute steps) and `reasoning` (≤300 chars) per selected stop, in the same v5 call — no new API round trip, just a richer response schema (`selectedPlaces: { googlePlaceId, estimatedMinutes, reasoning }[]`, replacing v5's bare `selectedPlaceIds: string[]`).
+- **Anthropic's structured-output `json_schema` rejects `minimum`/`maximum`/`multipleOf`/`maxLength` outright** (a 400 at request time, not a silently-unenforced constraint) — discovered live after initial implementation. All numeric/string bounds are enforced in code (clamp/round/truncate) instead of in the request schema, guided only by the system prompt's instructions to Claude. Worth remembering for any future session that adds more structured-output fields to a Claude call.
+- `MAX_OUTPUT_TOKENS` raised 4096 → 8192 (v5's ceiling) since each kept place's response is now much larger.
+- `clustering.ts` stays untouched (still pure `Place[]`-in/`Place[]`-out) — `claudeService.ts`'s `curatePlaces` returns `CuratedStop[]` (`Place` + `estimatedMinutes` + `reasoning` bundled together), and `tripService.ts` splits that back into a plain `Place[]` for clustering, re-attaching the per-stop details afterward via a `googlePlaceId`-keyed lookup.
+- `places.photos` added to the Google Places field mask — the first photo's resource name is stored as `Place.photoName` (renamed from `photoUrl`, which had been silently unpopulated since v1 due to this exact field-mask gap). The frontend builds the actual image URL from this resource name itself, using the existing public `VITE_GOOGLE_MAPS_API_KEY` — the backend's secret `GOOGLE_PLACES_API_KEY` never appears in any API response, to avoid leaking a server-side key to the browser.
 
 **Frontend:**
-- Left-side stop list column next to the map (per the original blueprint's Screen 4 layout).
-- Stop detail panel, opens from either the list or a marker click.
+- Stop list and stop detail panel share a **single** left-side column that toggles between the two (not two permanently-visible panels) — clicking a stop swaps the list for the detail view, with a "← Back to list" link to return.
+- Detail panel opens from either a list-row click or a map-marker click; selecting a stop also pans the map to center on it (no zoom change).
+- Map pins are custom **photo pins** — a teardrop shape with the place's photo cropped into the round top (falling back to a generic icon when a place has no photo), built with `AdvancedMarker` (replacing the legacy `Marker` used since v1) and requiring a Google Maps **Map ID** (`VITE_GOOGLE_MAPS_MAP_ID`, a separate Cloud Console setup step, distinct from the API key).
+- **Zustand was not introduced**, contrary to v4's speculation that v6 would be the first real case for it — the actual component shape (`StopList`/`PlacesMap`/`StopDetailPanel`/`DayTimeline` all direct children of `TripPage`, one level deep) fit plain lifted `useState` in `TripPage` just as well as `DayTimeline`'s existing pattern. Zustand remains deferred to whenever a genuine non-parent/child sharing need shows up.
+- Day selection: the old "click again to deselect / show all days" behavior is gone — day 1 is auto-selected on load, and exactly one day is always selected. Switching days clears the selected stop.
 
 ---
 
@@ -217,7 +224,7 @@ Same core entities as the original blueprint, annotated with the version each fi
 | lng | decimal(10,7) | ✅ | |
 | city | varchar | ✅ | |
 | rating | decimal(3,1) | ❌ | nullable |
-| photoUrl | varchar | ❌ | nullable |
+| photoName | varchar | ❌ | nullable — Google's photo *resource name* (e.g. `places/ABC/photos/XYZ`), not a URL; actually populated from v6 (a v1–v5 field-mask gap left this null despite the column existing) — the frontend builds the real image URL itself using the public Maps key |
 | openingHours | jsonb | ❌ | nullable — fetched from v1 onward, unused until v8 |
 | category | varchar | ❌ | nullable — Google's `primaryTypeDisplayName`, shown in the stop list from v6 |
 
@@ -282,7 +289,7 @@ Response (stabilizes by v6):
         {
           "tripStopId": "uuid",
           "order": 1,
-          "place": { "id": "uuid", "name": "...", "lat": 0, "lng": 0, "rating": 4.7, "category": "...", "photoUrl": "...", "openingHours": {} },
+          "place": { "id": "uuid", "name": "...", "lat": 0, "lng": 0, "rating": 4.7, "category": "...", "photoName": "places/ABC/photos/XYZ", "openingHours": {} },
           "estimatedMinutes": 120,
           "reasoning": "..."
         }
@@ -310,12 +317,13 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 - **v4:** the preferences wizard turned out not to need Zustand — its 3 steps are direct children
   of one modal component, so plain `useState` in the modal (prop-drilled one level) was simpler
   and sufficient. TanStack Query continues to own all server data (places, trips).
-- **Zustand** gets introduced whenever something genuinely needs state shared across
-  non-parent/child components instead (the likely first real case is v6's active day / selected
-  stop, shared between sibling map and stop-list components).
+- **v6 revisited this and still didn't need Zustand** — the stop-list/map/detail-panel/day-timeline
+  state (active day, selected stop) turned out to be direct children of one page component, so
+  plain lifted `useState` (the same pattern `DayTimeline` already used) covered it. Zustand
+  remains deferred until a genuine non-parent/child sharing need shows up.
 
 ### Map
-**Google Maps JavaScript SDK** (confirmed) — consistent with the Google Places data already driving the app. Requires the Maps JavaScript API enabled on the same Google Cloud project as the Places key; usage-billed beyond Google's free monthly credit.
+**Google Maps JavaScript SDK** (confirmed) — consistent with the Google Places data already driving the app. Requires the Maps JavaScript API enabled on the same Google Cloud project as the Places key; usage-billed beyond Google's free monthly credit. From v6, custom photo pins use `AdvancedMarker`, which additionally requires a Google Maps **Map ID** (`VITE_GOOGLE_MAPS_MAP_ID`) — a separate Cloud Console setup step (Maps Platform → Map Management), distinct from the API key.
 
 ### Key components by version
 | Component | Introduced |
@@ -323,7 +331,7 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 | City input + Generate button + Map | v1 |
 | Date range pickers, Day timeline | v2 |
 | Home page + "Add Trip" modal wizard, real routing (`/`, `/trips/:tripId`) | v4 |
-| Stop list column + Stop detail panel | v6 |
+| Stop list ⟷ Stop detail panel (single toggling column) + custom photo map pins | v6 |
 | Login/register forms, Trips dashboard | v7 |
 
 ---

@@ -49,9 +49,57 @@ that cost for routine per-session checks.
    pass at low/medium effort: a handful of high-confidence findings, not an exhaustive multi-angle
    search.
 
-5. **Report findings** with the `ReportFindings` tool (file, line, one-sentence summary, concrete
-   failure scenario), ranked most-severe first. An empty list is a valid, good outcome — say so
-   plainly rather than manufacturing a finding.
+5. **Sort every finding into exactly one of two buckets** before reporting anything:
+   - **Bugs That Must Fix** — reproducible, or clearly going to misbehave under normal use.
+     Something you're confident is actually wrong, not just a theoretical edge case.
+   - **Nice to Change** — plausible but unconfirmed, low-severity, only manifests under an
+     unlikely combination of conditions, or a robustness improvement rather than a live bug.
+   There's no third bucket and no severity score — every finding goes in one of these two, based
+   on your actual confidence, not on how interesting it is to report.
+
+## Output format — read this before writing your final response
+
+**Do not use the `ReportFindings` tool for this skill.** It renders its own generic
+finding-list UI, which doesn't support the two-bucket structure below — write the response
+directly as chat text instead, following this format exactly.
+
+**Do not wrap the findings in narrative paragraphs.** No scope preamble beyond a single line, no
+closing essay asking what to do next, no restating the whole investigation in prose. The
+response is: one optional scope line, then the two headed lists, nothing else framing them.
+
+Structure:
+
+```
+Reviewed <N> files from session-notes/session-<N>.
+
+## Bugs That Must Fix
+
+**<short title of the bug>**
+<file>:<line> — <one tight paragraph: what's wrong, and the concrete failure scenario that
+triggers it>
+
+**<next bug's title>**
+...
+
+(or, if none: "None found.")
+
+## Nice to Change
+
+**<short title>**
+<file>:<line> — <one tight paragraph: what's plausible/minor about it, and why it's not
+must-fix>
+
+(or, if none: "None found.")
+```
+
+Each finding is a bold one-line header (name the problem, don't describe it in the header) plus
+exactly one explanation paragraph underneath — not two paragraphs, not a bullet list of
+sub-points. If you're not confident enough in a finding to write one tight paragraph justifying
+it, it probably belongs in "Nice to Change" or shouldn't be reported at all.
+
+After presenting both lists, stop. Wait for the user to say which (if any) they want fixed —
+don't apply fixes unprompted, and don't re-ask "would you like me to fix this?" as its own
+paragraph; the two lists are already the prompt for that decision.
 
 ## Fallback: no session-notes yet
 

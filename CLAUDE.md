@@ -26,6 +26,10 @@ TripFlow/
 │       └── ...
 ├── .claude/
 │   └── skills/
+│       ├── start-session/
+│       │   └── SKILL.md
+│       ├── review-session/
+│       │   └── SKILL.md
 │       ├── test-ai-pipeline/
 │       │   └── SKILL.md
 │       └── sync-blueprint/
