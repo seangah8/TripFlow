@@ -1,8 +1,11 @@
+@use './tokens';
+
 .auth-page {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100vh;
+  background: tokens.$color-bg-app;
 }
 
 .auth-page__form {
@@ -10,36 +13,50 @@
   flex-direction: column;
   gap: 0.75rem;
   width: min(90vw, 360px);
+  padding: 2.5rem 2rem;
+  border-radius: tokens.$radius-md;
+  background: tokens.$color-bg;
+  box-shadow: tokens.$shadow-md;
   text-align: center;
 
   h1 {
     margin-bottom: 0;
+    color: tokens.$color-primary;
   }
 
   h2 {
     margin-top: 0;
-    color: #666;
+    color: tokens.$color-text-muted;
     font-weight: normal;
   }
 
   input {
     padding: 0.6rem 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
+    border: 1px solid tokens.$color-border;
+    border-radius: tokens.$radius-sm;
     font-size: 1rem;
+    font: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: tokens.$color-primary;
+      box-shadow: 0 0 0 3px tokens.$color-primary-light;
+    }
   }
 
   button {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
+    font-weight: 600;
     border: none;
-    border-radius: 8px;
-    background: #2563eb;
+    border-radius: tokens.$radius-sm;
+    background: tokens.$color-primary;
     color: white;
     cursor: pointer;
 
     &:disabled {
-      background: #93c5fd;
+      background: tokens.$color-primary-light;
+      color: tokens.$color-text-muted;
       cursor: not-allowed;
     }
   }
@@ -51,6 +68,6 @@
 }
 
 .auth-page__switch {
-  color: #666;
+  color: tokens.$color-text-muted;
   margin: 0;
 }
