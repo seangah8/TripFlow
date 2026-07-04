@@ -1,0 +1,16 @@
+// Global stylesheet — imported exactly once, in main.tsx. Any actual CSS
+// rules belong here, not in _tokens.scss (which other component .scss files
+// `@use` freely for variables — see that file's header comment for why).
+@use './tokens';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: tokens.$font-body;
+  color: tokens.$color-text;
+}

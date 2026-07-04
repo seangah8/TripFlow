@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
+import './styles/main.scss'
 
 // QueryClient holds the actual cache that every useQuery call (like
 // usePlaces) reads from and writes to. One instance for the whole app,

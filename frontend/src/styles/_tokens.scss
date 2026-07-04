@@ -1,0 +1,44 @@
+// Shared design tokens — variables + mixins only, no compiled CSS output.
+// Safe for any component .scss to `@use '../styles/tokens' as tokens;`
+// without duplicating rules into every bundle (Vite compiles each imported
+// .scss independently, so anything that emits actual CSS must stay out of
+// this file — see main.scss for the one place global rules live).
+//
+// Color/spacing/radius/shadow values below match the app's current
+// hardcoded palette 1:1 — this step is pure scaffolding, not a redesign.
+// The palette itself gets reconsidered in Step 1.
+
+// Color
+$color-primary: #2563eb;
+$color-primary-light: #eff6ff;
+$color-border: #ccc;
+$color-border-muted: #ddd;
+$color-text: #111827;
+$color-text-muted: #666;
+$color-bg: #ffffff;
+$color-bg-muted: #f1f5f9;
+
+// Spacing scale
+$space-xs: 0.25rem;
+$space-sm: 0.5rem;
+$space-md: 1rem;
+$space-lg: 1.5rem;
+$space-xl: 2rem;
+
+// Radius scale
+$radius-sm: 8px;
+$radius-md: 12px;
+
+// Shadow scale
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+// Typography
+$font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+// Single breakpoint confirmed for v9: <640px is mobile, >=640px is desktop.
+@mixin mobile {
+  @media (max-width: 639px) {
+    @content;
+  }
+}
