@@ -9,6 +9,10 @@
   padding: tokens.$space-md tokens.$space-lg;
   background: tokens.$color-bg;
   box-shadow: tokens.$shadow-sm;
+
+  @include tokens.mobile {
+    padding: tokens.$space-sm tokens.$space-md;
+  }
 }
 
 // Logo.scss owns the icon/wordmark's own color and typography — this just
@@ -23,6 +27,14 @@
   align-items: center;
   gap: tokens.$space-sm;
   color: tokens.$color-text-muted;
+}
+
+.app-header__email {
+  // Least essential piece of the header and the most likely to overflow on
+  // a narrow screen — dropped on mobile, logout stays reachable on its own.
+  @include tokens.mobile {
+    display: none;
+  }
 }
 
 .app-header__logout {

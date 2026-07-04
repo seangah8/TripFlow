@@ -19,6 +19,10 @@
   box-shadow: tokens.$shadow-md;
   text-align: center;
 
+  @include tokens.mobile {
+    padding: 2rem 1.25rem;
+  }
+
   .logo {
     margin-bottom: 0.5rem;
   }

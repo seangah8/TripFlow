@@ -58,7 +58,7 @@ export function ConfirmStep({
   if (isPending) {
     return (
       <div className="wizard-step">
-        <LoadingOverlay message="Generating your trip — this can take a minute or two…" />
+        <LoadingOverlay message="Generating your trip - this can take a minute…" />
       </div>
     );
   }

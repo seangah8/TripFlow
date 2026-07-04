@@ -5,6 +5,10 @@
   flex-direction: column;
   gap: 1.5rem;
   padding: 2rem 2.5rem;
+
+  @include tokens.mobile {
+    padding: 1.25rem 1rem;
+  }
 }
 
 .dashboard-page__status {
@@ -13,10 +17,13 @@
 
 .dashboard-page__grid {
   display: grid;
-  // Fixed 4-per-row, matching VacationPage's grid (Step 7) — responsive
-  // collapsing for narrower viewports is handled separately in Step 13.
+  // Fixed 4-per-row, matching VacationPage's grid (Step 7).
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
+
+  @include tokens.mobile {
+    grid-template-columns: 1fr;
+  }
 }
 
 // Square, like VacationCard, so it sits flush among the vacation cards —

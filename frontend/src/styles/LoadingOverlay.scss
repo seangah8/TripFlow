@@ -9,8 +9,8 @@
 }
 
 .loading-route {
-  width: 180px;
-  height: 72px;
+  width: 140px;
+  height: 56px;
 }
 
 .loading-route__path {
@@ -18,7 +18,6 @@
   stroke: tokens.$color-primary;
   stroke-width: 3;
   stroke-linecap: round;
-  stroke-linejoin: round;
   // pathLength="100" (set on the element) normalizes the path to 100 units
   // regardless of its actual curve length, so the dash math below is exact
   // without needing to measure the real geometry.
@@ -46,6 +45,8 @@
 .loading-overlay__message {
   margin: 0;
   color: tokens.$color-text-muted;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .loading-overlay--inline {

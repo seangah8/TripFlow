@@ -26,12 +26,24 @@
   font-weight: 600;
   text-decoration: none;
   box-shadow: tokens.$shadow-md;
+
+  @include tokens.mobile {
+    right: 3.5rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+  }
 }
 
 .trip-page__content {
   display: flex;
   flex: 1;
   min-height: 0;
+
+  // Stacked instead of side-by-side — a 320px side panel next to the map
+  // would leave the map barely usable on a phone-width screen.
+  @include tokens.mobile {
+    flex-direction: column;
+  }
 }
 
 .trip-page__side-panel {
@@ -39,6 +51,11 @@
   flex-direction: column;
   flex: 0 0 320px;
   min-height: 0;
+
+  @include tokens.mobile {
+    flex: 0 0 auto;
+    max-height: 45vh;
+  }
 }
 
 // BackButton itself is spacing-agnostic (reused across pages) — this page
@@ -53,6 +70,15 @@
   margin: tokens.$space-lg;
   border-radius: tokens.$radius-md;
   overflow: hidden;
+
+  @include tokens.mobile {
+    // Stacked layout puts the side panel first in the DOM (so it reads
+    // naturally when it's below the map) — `order` puts the map on top
+    // visually without needing to reorder the actual markup.
+    order: -1;
+    margin: tokens.$space-sm;
+    min-height: 45vh;
+  }
 }
 
 .trip-page__status {

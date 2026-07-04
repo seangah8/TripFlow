@@ -5,6 +5,10 @@
   flex-direction: column;
   gap: 1.5rem;
   padding: 2rem 2.5rem;
+
+  @include tokens.mobile {
+    padding: 1.25rem 1rem;
+  }
 }
 
 .vacation-page__header {
@@ -29,11 +33,13 @@
 
 .vacation-page__grid {
   display: grid;
-  // Fixed 3-per-row (widened from 4 so the bigger trip cards below have
-  // room) — responsive collapsing for narrower viewports is handled
-  // separately in Step 13's mobile pass.
+  // Fixed 3-per-row (widened from 4 so the bigger trip cards below have room).
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
+
+  @include tokens.mobile {
+    grid-template-columns: 1fr;
+  }
 }
 
 // Sits as the last tile in the grid, alongside the trip cards — reads as

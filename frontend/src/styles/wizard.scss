@@ -29,6 +29,10 @@
   border-radius: tokens.$radius-md;
   background: tokens.$color-bg;
   box-shadow: tokens.$shadow-md;
+
+  @include tokens.mobile {
+    padding: 1.5rem 1rem 1rem;
+  }
 }
 
 .wizard-modal__close {

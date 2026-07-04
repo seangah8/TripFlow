@@ -21,4 +21,8 @@ The user raised a real UX problem, not just cosmetics: trip generation can take 
 - The route-drawing animation reuses the same Route glyph/theme as the Step 11 logo, rather than a generic spinner, so it reads as on-brand rather than a stock loading indicator.
 - Login/Register/NewVacationModal's quick-action buttons deliberately kept their existing text-only pending labels — those resolve near-instantly, unlike generation, so a spinner there wasn't worth the added visual weight.
 
+## Follow-up tweaks (post-checkpoint, in browser)
+- Route path revised twice based on feedback: first attempt (zigzag straight-line segments) was rejected as looking worse than the original smooth curve; replaced with an all-cubic-bezier path that includes an actual loop in the middle — achieved by a bezier segment whose start/end anchor is the same point with wide-swinging control points, which makes the curve cross itself into a circle shape instead of just bulging.
+- `.loading-overlay__message` shrunk to `0.85rem` with `white-space: nowrap` so the generation message stays on one line instead of wrapping.
+
 Suggested commit title: `feat: block wizard close during trip generation and add an animated loading cover`
