@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { TripPage } from './pages/TripPage';
+import { VacationPage } from './pages/VacationPage';
 import { useMe } from './hooks/useMe';
 import { useAuthStore } from './store/authStore';
 
@@ -40,7 +41,8 @@ function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />
-      <Route path="/trips/:tripId" element={<TripPage />} />
+      <Route path="/vacations/:vacationId" element={<VacationPage />} />
+      <Route path="/vacations/:vacationId/trips/:tripId" element={<TripPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
