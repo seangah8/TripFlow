@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import type { TripDay } from '../types/trip';
+import '../styles/DayTimeline.scss';
 
 interface DayTimelineProps {
   days: TripDay[];
@@ -7,9 +8,23 @@ interface DayTimelineProps {
   onSelectDate: (date: string) => void;
 }
 
+// Trip dates are always local to the city (no timezone conversion, per
+// project rules) — so this formats the "YYYY-MM-DD" string's own digits
+// directly instead of going through Date, which would risk a UTC shift.
+function formatShortDate(isoDate: string): string {
+  const [, month, day] = isoDate.split('-');
+  return `${Number(day)}.${Number(month)}`;
+}
+
+// Past this many days, cards shrink so the row doesn't overflow toward the
+// map's edges — trips can run up to 14 days (MAX_TRIP_DAYS).
+const COMPACT_THRESHOLD = 8;
+
 export function DayTimeline({ days, selectedDate, onSelectDate }: DayTimelineProps): JSX.Element {
+  const isCompact = days.length > COMPACT_THRESHOLD;
+
   return (
-    <div className="day-timeline">
+    <div className={isCompact ? 'day-timeline day-timeline--compact' : 'day-timeline'}>
       {days.map((day) => (
         <button
           key={day.date}
@@ -19,8 +34,7 @@ export function DayTimeline({ days, selectedDate, onSelectDate }: DayTimelinePro
           }
           onClick={() => onSelectDate(day.date)}
         >
-          <span className="day-timeline__date">{day.date}</span>
-          <span className="day-timeline__count">{day.stops.length} stops</span>
+          {formatShortDate(day.date)}
         </button>
       ))}
     </div>

@@ -82,9 +82,9 @@ export function TripPage(): JSX.Element {
         </div>
         <main className="trip-page__map">
           <PlacesMap stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />
+          <DayTimeline days={trip.days} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
         </main>
       </div>
-      <DayTimeline days={trip.days} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
     </div>
   );
 }

@@ -1,0 +1,43 @@
+@use './tokens';
+
+// Floats over the map (its parent, .trip-page__map, is position: relative)
+// instead of taking its own row below it, so the map keeps the full height
+// of the content area.
+.day-timeline {
+  position: absolute;
+  left: 50%;
+  bottom: tokens.$space-md;
+  transform: translateX(-50%);
+  display: flex;
+  gap: tokens.$space-sm;
+  max-width: calc(100% - #{tokens.$space-lg * 2});
+  overflow-x: auto;
+}
+
+.day-timeline__card {
+  flex: 0 0 auto;
+  // Vertical padding is fixed — only horizontal padding (width) ever
+  // changes between the compact/non-compact variants below, so card height
+  // stays identical regardless of how many days the trip has.
+  padding: 0.25rem 1.6rem;
+  border: 1px solid tokens.$color-border;
+  border-radius: 999px;
+  background: tokens.$color-bg;
+  color: tokens.$color-text-muted;
+  font-weight: 600;
+  box-shadow: tokens.$shadow-md;
+  cursor: pointer;
+
+  &--selected {
+    border-color: tokens.$color-primary;
+    background: tokens.$color-primary;
+    color: white;
+  }
+}
+
+// Once there are more than COMPACT_THRESHOLD days, halve the horizontal
+// padding so the row stays clear of the map's edges instead of pushing
+// outward — height is untouched.
+.day-timeline--compact .day-timeline__card {
+  padding: 0.25rem 0.8rem;
+}
