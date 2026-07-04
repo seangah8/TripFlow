@@ -8,6 +8,7 @@ import '../../styles/wizard.scss';
 
 interface TripWizardModalProps {
   vacationId?: string;
+  occupiedRanges?: Array<{ startDate: string; endDate: string; city: string }>;
   onClose: () => void;
 }
 
@@ -21,7 +22,7 @@ const DEFAULT_PREFERENCES: TripPreferences = {
   budget: 'mid-range',
 };
 
-export function TripWizardModal({ vacationId, onClose }: TripWizardModalProps): JSX.Element {
+export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWizardModalProps): JSX.Element {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [city, setCity] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -44,6 +45,7 @@ export function TripWizardModal({ vacationId, onClose }: TripWizardModalProps): 
             onStartDateChange={setStartDate}
             endDate={endDate}
             onEndDateChange={setEndDate}
+            occupiedRanges={occupiedRanges}
             onNext={() => setStep(2)}
           />
         )}

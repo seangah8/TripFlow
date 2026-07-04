@@ -1,4 +1,12 @@
 import type { FormEvent, JSX } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+interface OccupiedRange {
+  startDate: string;
+  endDate: string;
+  city: string;
+}
 
 interface DestinationStepProps {
   city: string;
@@ -8,6 +16,7 @@ interface DestinationStepProps {
   endDate: string;
   onEndDateChange: (date: string) => void;
   onNext: () => void;
+  occupiedRanges?: OccupiedRange[];
 }
 
 // Kept in sync with MAX_TRIP_DAYS in backend/src/api/services/tripService.ts —
@@ -15,7 +24,28 @@ interface DestinationStepProps {
 // the same rule regardless since it's a real request boundary.
 const MAX_TRIP_DAYS = 14;
 
-function getValidationError(startDate: string, endDate: string): string | null {
+// react-datepicker works with Date objects; the rest of the app (parent state,
+// the backend) works in plain YYYY-MM-DD strings. These helpers keep that
+// conversion local to this file rather than spreading Date-handling elsewhere.
+function parseDateString(value: string): Date | null {
+  if (!value) {
+    return null;
+  }
+  // Constructed from explicit Y/M/D components (not `new Date(value)`) to avoid
+  // UTC-midnight-vs-local-timezone off-by-one issues the picker would otherwise
+  // introduce when rendering/selecting in local time.
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year!, month! - 1, day!);
+}
+
+function formatDateToString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getValidationError(startDate: string, endDate: string, occupiedRanges: OccupiedRange[]): string | null {
   if (!startDate || !endDate) {
     return null;
   }
@@ -33,6 +63,11 @@ function getValidationError(startDate: string, endDate: string): string | null {
     return `Trips can be at most ${MAX_TRIP_DAYS} days long.`;
   }
 
+  const conflict = occupiedRanges.find((range) => startDate <= range.endDate && range.startDate <= endDate);
+  if (conflict) {
+    return `These dates overlap with your existing trip to ${conflict.city} (${conflict.startDate} – ${conflict.endDate}).`;
+  }
+
   return null;
 }
 
@@ -44,9 +79,15 @@ export function DestinationStep({
   endDate,
   onEndDateChange,
   onNext,
+  occupiedRanges = [],
 }: DestinationStepProps): JSX.Element {
-  const validationError = getValidationError(startDate, endDate);
+  const validationError = getValidationError(startDate, endDate, occupiedRanges);
   const canProceed = Boolean(city.trim() && startDate && endDate && !validationError);
+
+  const excludedIntervals = occupiedRanges.map((range) => ({
+    start: parseDateString(range.startDate)!,
+    end: parseDateString(range.endDate)!,
+  }));
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -62,17 +103,24 @@ export function DestinationStep({
         onChange={(event) => onCityChange(event.target.value)}
         placeholder="Enter a city"
       />
-      <input
-        type="date"
-        value={startDate}
-        onChange={(event) => onStartDateChange(event.target.value)}
+      <DatePicker
+        selected={parseDateString(startDate)}
+        onChange={(date: Date | null) => date && onStartDateChange(formatDateToString(date))}
+        minDate={new Date()}
+        excludeDateIntervals={excludedIntervals}
+        placeholderText="Start date"
         aria-label="Start date"
+
+        portalId="datepicker-portal"
       />
-      <input
-        type="date"
-        value={endDate}
-        onChange={(event) => onEndDateChange(event.target.value)}
+      <DatePicker
+        selected={parseDateString(endDate)}
+        onChange={(date: Date | null) => date && onEndDateChange(formatDateToString(date))}
+        minDate={parseDateString(startDate) ?? new Date()}
+        excludeDateIntervals={excludedIntervals}
+        placeholderText="End date"
         aria-label="End date"
+        portalId="datepicker-portal"
       />
       {validationError && <p className="wizard-step__error">{validationError}</p>}
       <button type="submit" disabled={!canProceed}>

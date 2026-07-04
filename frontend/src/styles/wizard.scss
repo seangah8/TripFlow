@@ -8,6 +8,16 @@
   z-index: 10;
 }
 
+// The date picker's popup is portalled to #datepicker-portal (a plain div
+// appended to <body>, outside the modal's DOM subtree — see DestinationStep.tsx)
+// to avoid the modal's overflow-y: auto clipping it. Without an explicit
+// z-index here, it has no stacking context and paints behind the modal's
+// z-index: 10. Purely a stacking-order fix, not a visual styling change.
+#datepicker-portal {
+  position: relative;
+  z-index: 20;
+}
+
 .wizard-modal {
   position: relative;
   width: min(90vw, 420px);

@@ -48,7 +48,15 @@ export function VacationPage(): JSX.Element {
       )}
 
       {isWizardOpen && (
-        <TripWizardModal vacationId={vacation.vacationId} onClose={() => setIsWizardOpen(false)} />
+        <TripWizardModal
+          vacationId={vacation.vacationId}
+          occupiedRanges={vacation.trips.map((trip) => ({
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+            city: trip.city,
+          }))}
+          onClose={() => setIsWizardOpen(false)}
+        />
       )}
     </div>
   );
