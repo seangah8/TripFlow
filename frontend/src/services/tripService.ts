@@ -1,10 +1,8 @@
 import { apiFetch } from '../lib/api';
 import type { Trip, TripPreferences, TripSummary } from '../types/trip';
 
-// Plain functions that know how to talk to the backend's trip endpoints —
-// deliberately React/TanStack-Query-agnostic, mirroring the backend's own
-// api/services/tripService.ts split. The matching hooks (useGenerateTrip.ts,
-// useTrip.ts) are thin wrappers around these.
+// Deliberately React/TanStack-Query-agnostic, mirroring the backend's own service split.
+// The matching hooks are thin wrappers around these.
 export interface GenerateTripInput {
   city: string;
   startDate: string;

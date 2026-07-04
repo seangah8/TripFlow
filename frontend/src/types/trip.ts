@@ -1,7 +1,6 @@
 import type { Place } from './place';
 
-// Mirrors the backend's TripPreferences (backend/src/types/trip.ts) exactly — the wizard's
-// Preferences step (Step 2) collects this, sent as-is in the generate request body.
+// Mirrors the backend's TripPreferences exactly — sent as-is in the generate request body.
 export interface TripPreferences {
   vibe: 'relaxed' | 'moderate' | 'packed';
   interests: Array<'museums' | 'food' | 'nature' | 'nightlife' | 'shopping'>;
@@ -9,8 +8,7 @@ export interface TripPreferences {
   budget: 'budget' | 'mid-range' | 'luxury';
 }
 
-// Mirrors the backend's TripStopResponse (backend/src/types/trip.ts) — estimatedMinutes/
-// reasoning are always null until v6 introduces Claude's per-stop time estimates.
+// Mirrors the backend's TripStopResponse.
 export interface TripStop {
   tripStopId: string;
   order: number;
@@ -33,8 +31,7 @@ export interface Trip {
   days: TripDay[];
 }
 
-// Mirrors the backend's TripSummaryResponse — the lightweight GET /api/trips /
-// vacation-hub card shape: no full stops/places, but does include the first
+// Lightweight card shape: no full stops/places, but does include the first
 // stop's photo (looked up separately, not a full trip_stops join).
 export interface TripSummary {
   tripId: string;

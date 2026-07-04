@@ -3,9 +3,8 @@ import '../styles/LoadingOverlay.scss';
 
 interface LoadingOverlayProps {
   message?: string;
-  // 'full': an animated route drawing itself between two pins — reserved for
-  // genuinely long waits (trip generation). 'inline': a small spinning ring
-  // for quick page loads that don't need the same visual weight.
+  // 'full': animated route for genuinely long waits (trip generation).
+  // 'inline': a small spinning ring for quick page loads.
   variant?: 'full' | 'inline';
 }
 

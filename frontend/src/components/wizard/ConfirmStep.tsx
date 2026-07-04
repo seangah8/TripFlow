@@ -40,11 +40,8 @@ const BUDGET_LABELS: Record<TripPreferences['budget'], string> = {
   luxury: 'Luxury',
 };
 
-// The mutation itself (useAddTripToVacation) now lives in TripWizardModal,
-// not here — it needs to see isPending too, to block the modal from being
-// closed mid-generation. This step is purely presentational: summary, the
-// generate action, and (while pending) the loading cover in place of its
-// own content.
+// The mutation lives in TripWizardModal, not here — it needs isPending too,
+// to block the modal from closing mid-generation. This step is purely presentational.
 export function ConfirmStep({
   city,
   startDate,

@@ -3,9 +3,8 @@
 .logo {
   display: inline-flex;
   align-items: center;
-  // Centers it on the cross axis wherever it sits as a flex item — e.g.
-  // horizontally in LoginPage's centered column form, harmlessly a no-op
-  // in Header's row (already vertically centered by .app-header itself).
+  // Centers it on the cross axis wherever it sits as a flex item — a no-op
+  // in Header's row, already vertically centered by .app-header.
   align-self: center;
   gap: 0.4rem;
   color: tokens.$color-primary;

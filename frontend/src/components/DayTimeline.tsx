@@ -8,9 +8,8 @@ interface DayTimelineProps {
   onSelectDate: (date: string) => void;
 }
 
-// Trip dates are always local to the city (no timezone conversion, per
-// project rules) — so this formats the "YYYY-MM-DD" string's own digits
-// directly instead of going through Date, which would risk a UTC shift.
+// Formats the "YYYY-MM-DD" string's own digits directly instead of going
+// through Date, which would risk a UTC shift.
 function formatShortDate(isoDate: string): string {
   const [, month, day] = isoDate.split('-');
   return `${Number(day)}.${Number(month)}`;

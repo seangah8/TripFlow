@@ -1,7 +1,5 @@
-// Centralizes the fetch pattern duplicated across useGenerateTrip.ts/useTrip.ts —
-// critically, `credentials: 'include'` on every call, which is now required since
-// every trip/auth endpoint reads the httpOnly session cookie the browser won't
-// otherwise send cross-origin.
+// Centralized fetch wrapper — critically, `credentials: 'include'` on every call,
+// required since every endpoint reads the httpOnly session cookie.
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const url = new URL(path, import.meta.env.VITE_API_URL);
   const response = await fetch(url, {

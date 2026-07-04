@@ -18,9 +18,8 @@
   stroke: tokens.$color-primary;
   stroke-width: 3;
   stroke-linecap: round;
-  // pathLength="100" (set on the element) normalizes the path to 100 units
-  // regardless of its actual curve length, so the dash math below is exact
-  // without needing to measure the real geometry.
+  // pathLength="100" (set on the element) normalizes the path to 100 units,
+  // so the dash math below is exact without measuring the real geometry.
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
   animation: loading-route-draw 1.8s ease-in-out infinite;

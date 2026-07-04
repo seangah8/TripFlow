@@ -1,10 +1,8 @@
 import { apiFetch } from '../lib/api';
 import type { AuthResponse } from '../types/auth';
 
-// Plain functions that know how to talk to the backend's auth endpoints —
-// deliberately React/TanStack-Query-agnostic, mirroring the backend's own
-// api/services/authService.ts split (routes/controllers vs. services). The
-// matching hooks (useRegister.ts etc.) are thin wrappers around these.
+// Deliberately React/TanStack-Query-agnostic, mirroring the backend's own service split.
+// The matching hooks are thin wrappers around these.
 export interface RegisterInput {
   email: string;
   password: string;

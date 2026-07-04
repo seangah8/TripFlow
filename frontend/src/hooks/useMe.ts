@@ -3,9 +3,7 @@ import { getMe } from '../services/authService';
 import type { AuthResponse } from '../types/auth';
 
 // retry: false — a 401 here means "not logged in", an expected outcome,
-// not a transient failure worth retrying. The consumer (App.tsx) reads
-// isSuccess/isError itself and syncs the result into authStore, since
-// TanStack Query v5 dropped useQuery's onSuccess/onError callbacks.
+// not a transient failure worth retrying.
 export function useMe(): UseQueryResult<AuthResponse, Error> {
   return useQuery({
     queryKey: ['me'],

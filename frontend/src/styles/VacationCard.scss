@@ -3,11 +3,8 @@
 .vacation-card {
   position: relative;
   aspect-ratio: 1 / 1;
-  // Without this, grid items default to stretching to the row's height —
-  // and once a row auto-sizes taller than a perfect square (e.g. from
-  // another card's content), aspect-ratio loses that fight and the card
-  // grows past square, pushing its visual center down. align-self: start
-  // lets aspect-ratio (not the row) determine this card's height.
+  // Without this, grid items stretch to the row's height and aspect-ratio loses
+  // that fight once the row auto-sizes taller than a perfect square.
   align-self: start;
   overflow: hidden;
   border: 1px solid tokens.$color-border;
@@ -24,10 +21,8 @@
   }
 }
 
-// Faint photo collage sitting behind the card's text — one image per trip
-// (up to 4), laid out so the space is used well regardless of count: 1 fills
-// the square, 2 splits side by side, 3 is one tall + two stacked, 4 is a
-// plain 2x2 grid.
+// Faint photo collage behind the card's text — one image per trip (up to 4),
+// laid out so the space is used well regardless of count.
 .vacation-card__collage {
   position: absolute;
   inset: 0;
@@ -60,11 +55,8 @@
 }
 
 .vacation-card__collage-img {
-  // min-width/height: 0 override the grid item's automatic minimum size,
-  // which otherwise defaults to the <img>'s own intrinsic (natural) size —
-  // without this, a tall/narrow source photo can force its row to claim
-  // more than its fair 1fr share, unevenly splitting the 2x2 grid even
-  // though the container itself is a perfect square.
+  // min-width/height: 0 override the grid item's automatic minimum size (the
+  // <img>'s intrinsic size), which could otherwise unevenly split the 2x2 grid.
   min-width: 0;
   min-height: 0;
   width: 100%;

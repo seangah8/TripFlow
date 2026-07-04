@@ -19,21 +19,18 @@ interface DestinationStepProps {
   occupiedRanges?: OccupiedRange[];
 }
 
-// Kept in sync with MAX_TRIP_DAYS in backend/src/api/services/tripService.ts —
-// this is a UX nicety (immediate inline feedback), the backend re-validates
-// the same rule regardless since it's a real request boundary.
+// Kept in sync with MAX_TRIP_DAYS in the backend — a UX nicety, since the
+// backend re-validates the same rule at the request boundary regardless.
 const MAX_TRIP_DAYS = 14;
 
-// react-datepicker works with Date objects; the rest of the app (parent state,
-// the backend) works in plain YYYY-MM-DD strings. These helpers keep that
-// conversion local to this file rather than spreading Date-handling elsewhere.
+// react-datepicker works with Date objects; the rest of the app works in plain
+// YYYY-MM-DD strings — these helpers keep that conversion local to this file.
 function parseDateString(value: string): Date | null {
   if (!value) {
     return null;
   }
   // Constructed from explicit Y/M/D components (not `new Date(value)`) to avoid
-  // UTC-midnight-vs-local-timezone off-by-one issues the picker would otherwise
-  // introduce when rendering/selecting in local time.
+  // UTC-midnight-vs-local-timezone off-by-one issues.
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year!, month! - 1, day!);
 }

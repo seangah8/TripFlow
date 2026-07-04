@@ -5,15 +5,11 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './styles/main.scss'
 
-// QueryClient holds the actual cache that every useQuery call (like
-// usePlaces) reads from and writes to. One instance for the whole app,
-// created outside the component tree so it survives re-renders.
+// Created outside the component tree so the cache survives re-renders.
 const queryClient = new QueryClient()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {/* Makes queryClient available to any useQuery/useMutation call
-        anywhere below via React context — this is what usePlaces relies on. */}
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <App />

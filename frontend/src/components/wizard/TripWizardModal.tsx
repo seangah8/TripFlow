@@ -14,9 +14,8 @@ interface TripWizardModalProps {
   onClose: () => void;
 }
 
-// Neutral starting values for the dropdowns — a native <select> always shows something
-// selected, so these just need to be reasonable defaults, not a "nothing chosen" state.
-// `interests` is the one field with a real empty state (no chips selected).
+// Neutral starting values — a native <select> always shows something selected, so these
+// are just reasonable defaults, not a "nothing chosen" state. `interests` is the exception.
 const DEFAULT_PREFERENCES: TripPreferences = {
   vibe: 'moderate',
   interests: [],
@@ -31,11 +30,8 @@ export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWiz
   const [endDate, setEndDate] = useState('');
   const [preferences, setPreferences] = useState<TripPreferences>(DEFAULT_PREFERENCES);
   const navigate = useNavigate();
-  // Lifted up from ConfirmStep (rather than owned there) so this modal can see
-  // isPending and block closing while a generation is in flight — trip
-  // generation can take minutes, and letting someone bounce out of the wizard
-  // mid-generation (no confirmation it's still happening, no automatic
-  // redirect once it's done) was the whole reason for this step.
+  // Lifted up from ConfirmStep so this modal can block closing while a generation
+  // is in flight — trip generation can take minutes.
   const { mutate, isPending, error } = useAddTripToVacation(vacationId);
 
   function handleGenerate(): void {
@@ -60,7 +56,6 @@ export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWiz
 
   return (
     <div className="wizard-modal__backdrop" onClick={handleClose}>
-      {/* Stop propagation so clicking inside the modal doesn't bubble up and close it. */}
       <div className="wizard-modal" onClick={(event) => event.stopPropagation()}>
         <button
           type="button"

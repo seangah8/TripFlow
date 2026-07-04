@@ -39,9 +39,8 @@ export function TripCard({ trip, vacationId }: TripCardProps): JSX.Element {
         type="button"
         className="trip-card__delete"
         aria-label={`Delete trip to ${trip.city}`}
-        // Not nested inside the <Link> — a button inside an anchor is invalid
-        // HTML and stopPropagation alone wouldn't stop the browser's own
-        // navigation on click, so this sits as the Link's sibling instead.
+        // Not nested inside the <Link> — a button inside an anchor is invalid HTML,
+        // and stopPropagation alone wouldn't stop the browser's own navigation.
         onClick={() => setIsConfirmOpen(true)}
       >
         <Trash2 size={16} />

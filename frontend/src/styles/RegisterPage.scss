@@ -1,4 +1,3 @@
-// LoginPage.tsx and RegisterPage.tsx share the same .auth-page/.auth-page__form
-// classes (identical layout, just different fields) — this file re-exports
-// LoginPage.scss's rules rather than duplicating them.
+// LoginPage.tsx and RegisterPage.tsx share the same .auth-page classes —
+// re-exports LoginPage.scss's rules rather than duplicating them.
 @use './LoginPage.scss';

@@ -8,9 +8,7 @@ interface BackButtonProps {
   label: string;
 }
 
-// Plain icon-only back link — a floating circular button (rounded, shadow,
-// primary-color icon), reused wherever a page needs a "back" affordance
-// without a full text header (TripPage, VacationPage).
+// Reused wherever a page needs a "back" affordance without a full text header.
 export function BackButton({ to, label }: BackButtonProps): JSX.Element {
   return (
     <Link to={to} className="back-button" aria-label={label}>

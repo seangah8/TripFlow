@@ -1,6 +1,5 @@
-// Global stylesheet — imported exactly once, in main.tsx. Any actual CSS
-// rules belong here, not in _tokens.scss (which other component .scss files
-// `@use` freely for variables — see that file's header comment for why).
+// Global stylesheet — imported exactly once, in main.tsx. Actual CSS rules
+// belong here, not in _tokens.scss (variables/mixins only).
 @use './tokens';
 
 *,
@@ -15,11 +14,8 @@ body {
   color: tokens.$color-text;
 }
 
-// The authenticated app's top-level layout: a fixed-height column with the
-// Header on top and the routed page filling the rest. TripPage relies on
-// this chain (height: 100% down to .trip-page) to size its map to the
-// remaining viewport instead of its own 100vh, which would double-count
-// the Header's height.
+// Fixed-height column: Header on top, routed page filling the rest. TripPage
+// relies on this height chain to size its map without double-counting the Header.
 .app-shell {
   display: flex;
   flex-direction: column;

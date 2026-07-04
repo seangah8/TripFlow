@@ -14,8 +14,7 @@ interface VacationCardProps {
 }
 
 // Faint background collage, up to this many of the vacation's earliest trips —
-// each trip contributes its own first-stop photo (or no image, if it doesn't
-// have one yet), not "the first N photos found."
+// each contributes its own first-stop photo, not "the first N photos found."
 const COLLAGE_LIMIT = 4;
 
 export function VacationCard({ vacation }: VacationCardProps): JSX.Element {

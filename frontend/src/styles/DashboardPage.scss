@@ -17,7 +17,7 @@
 
 .dashboard-page__grid {
   display: grid;
-  // Fixed 4-per-row, matching VacationPage's grid (Step 7).
+  // Fixed 4-per-row, matching VacationPage's grid.
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
 
@@ -26,9 +26,8 @@
   }
 }
 
-// Square, like VacationCard, so it sits flush among the vacation cards —
-// sits as the last tile in the grid, same "add the next one here" pattern
-// as VacationPage's add-city tile.
+// Square, like VacationCard, so it sits flush among the vacation cards as the
+// last tile — same "add the next one here" pattern as VacationPage's add-city tile.
 .dashboard-page__new-vacation {
   aspect-ratio: 1 / 1;
   display: flex;

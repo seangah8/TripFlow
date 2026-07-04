@@ -3,8 +3,7 @@ import type { Trip } from '../types/trip';
 import type { Vacation } from '../types/vacation';
 import type { GenerateTripInput } from './tripService';
 
-// Plain functions mirroring tripService.ts's split — deliberately
-// React/TanStack-Query-agnostic. The matching hooks wrap these.
+// Mirrors tripService.ts's split — deliberately React/Query-agnostic; hooks wrap these.
 export function createVacation(name?: string): Promise<Vacation> {
   return apiFetch<Vacation>('/api/vacations', {
     method: 'POST',

@@ -8,9 +8,8 @@ interface NewVacationModalProps {
   onClose: () => void;
 }
 
-// A small standalone prompt, not the 3-step trip wizard — a vacation itself has
-// nothing to configure beyond an optional name. Reuses the wizard's existing
-// backdrop/modal SCSS for visual consistency rather than declaring new styles.
+// A small standalone prompt, not the 3-step trip wizard — a vacation has nothing
+// to configure beyond an optional name. Reuses the wizard's modal SCSS.
 export function NewVacationModal({ onClose }: NewVacationModalProps): JSX.Element {
   const [name, setName] = useState('');
   const navigate = useNavigate();

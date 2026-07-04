@@ -6,11 +6,8 @@ interface LogoProps {
   size?: number;
 }
 
-// The icon + wordmark that represents TripFlow everywhere the app needs
-// branding (Header, Login/Register). Uses lucide-react's Route glyph
-// (a path between two points) rather than a hand-drawn asset — it's
-// already a clean, on-theme icon and needs no separate asset file to keep
-// in sync with the rest of the app's iconography.
+// Uses lucide-react's Route glyph rather than a hand-drawn asset — no
+// separate asset file to keep in sync with the rest of the iconography.
 export function Logo({ size = 22 }: LogoProps): JSX.Element {
   return (
     <span className="logo">

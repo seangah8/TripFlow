@@ -14,10 +14,8 @@ interface PlacesMapProps {
 const DEFAULT_CENTER = { lat: 20, lng: 0 };
 const DEFAULT_ZOOM = 2;
 
-// Separate child component because useMap() only works inside the <Map> tree
-// (it reads the map instance from vis.gl's internal context). Fires on the
-// initial load and every day switch (stops array changes), never on a stop
-// selection alone.
+// Separate child component because useMap() only works inside the <Map> tree.
+// Fires on initial load and every day switch, never on a stop selection alone.
 function FitBoundsToPlaces({ stops }: { stops: TripStop[] }): null {
   const map = useMap();
 
@@ -34,10 +32,8 @@ function FitBoundsToPlaces({ stops }: { stops: TripStop[] }): null {
   return null;
 }
 
-// Pans (never zooms) to the selected stop's marker. Keyed on selectedStopId, not
-// stops — switching days always clears selectedStopId back to null first (see
-// TripPage), so this effect only ever fires from an explicit stop selection and
-// never fights with FitBoundsToPlaces on a day switch.
+// Pans (never zooms) to the selected stop's marker. Keyed on selectedStopId, not stops —
+// switching days always clears selectedStopId first, so this never fights FitBoundsToPlaces.
 function PanToSelectedStop({ stops, selectedStopId }: { stops: TripStop[]; selectedStopId: string | null }): null {
   const map = useMap();
 
