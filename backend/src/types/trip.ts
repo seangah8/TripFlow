@@ -8,7 +8,7 @@ export interface TripPreferences {
   budget: 'budget' | 'mid-range' | 'luxury';
 }
 
-// Body for POST /api/trips/generate — BLUE_PRINT.md Section 5 (v2: city + dates; v4: + preferences).
+// Body for POST /api/trips/generate — BLUE_PRINT.md Section 5.
 export interface TripGenerateRequest {
   city: string;
   startDate: string;
@@ -16,9 +16,8 @@ export interface TripGenerateRequest {
   preferences: TripPreferences;
 }
 
-// estimatedMinutes/reasoning are populated from Claude's curation call (v6). The
-// columns stay nullable at the DB level for schema flexibility, but a stop that
-// made it through curation always has both set together.
+// The columns stay nullable at the DB level for schema flexibility, but a stop
+// that made it through curation always has both set together.
 export interface TripStopResponse {
   tripStopId: string;
   order: number;
@@ -41,10 +40,8 @@ export interface TripGenerateResponse {
   days: TripDayResponse[];
 }
 
-// Lightweight response shape for GET /api/trips (the dashboard's card list) and
-// the vacation hub's nested trip cards — excludes full stops/places, but does
-// include the first stop's photo (v9 card design) via a separate lookup, not a
-// full trip_stops join.
+// Lightweight response shape for GET /api/trips and the vacation hub's nested trip
+// cards — excludes full stops/places, includes the first stop's photo via a separate lookup.
 export interface TripSummaryResponse {
   tripId: string;
   city: string;

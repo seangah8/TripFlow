@@ -10,10 +10,8 @@ export interface VacationCreateRequest {
 // (BLUE_PRINT.md: "same request body as POST /api/trips/generate").
 export type VacationAddTripRequest = TripGenerateRequest;
 
-// Reused for POST /api/vacations, GET /api/vacations (list), GET /api/vacations/:id.
-// `trips` is deliberately TripSummaryResponse (city/dates only, no stops/places) —
-// the hub only renders trip cards; full itinerary detail is fetched separately via
-// the existing, unchanged GET /api/trips/:id when a card is clicked.
+// Reused for POST/GET /api/vacations. `trips` is deliberately TripSummaryResponse
+// (city/dates only) — full itinerary is fetched separately via GET /api/trips/:id.
 export interface VacationResponse {
   vacationId: string;
   name: string | null;

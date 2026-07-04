@@ -24,9 +24,8 @@ export interface ClaudePlaceSummary {
   lng: number;
 }
 
-// What claudeService.ts hands back to tripService.ts — a real Place paired with
-// Claude's per-stop details. Keeps clustering.ts's Place[]-only contract untouched;
-// tripService.ts re-attaches these details after clustering runs.
+// What claudeService.ts hands back to tripService.ts — a real Place paired with Claude's
+// per-stop details. Keeps clustering.ts's Place[]-only contract untouched.
 export interface CuratedStop {
   place: Place;
   estimatedMinutes: number;

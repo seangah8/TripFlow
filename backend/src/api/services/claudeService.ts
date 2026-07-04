@@ -7,29 +7,23 @@ import type { ClaudeCuratedStop, ClaudePlaceSummary, CurationOutput, CuratedStop
 // Google already returned, not open-ended reasoning, so Sonnet 5 is the right tier.
 const CLAUDE_MODEL = 'claude-sonnet-5';
 
-// Raised from 4096 in v5: each kept place now also costs a ~300-char reasoning
-// string (~75 tokens) plus an estimatedMinutes value, not just a bare id.
+// Each kept place costs a ~300-char reasoning string plus an estimatedMinutes value,
+// not just a bare id.
 const MAX_OUTPUT_TOKENS = 8192;
 
-// v6's bounds for estimatedMinutes/reasoning — enforced entirely in code (see
-// extractSelectedPlaces below) because Anthropic's structured-output schema
-// rejects minimum/maximum/multipleOf/maxLength outright (a 400 at request time).
+// Bounds for estimatedMinutes/reasoning — enforced entirely in code (see extractSelectedPlaces
+// below) since Anthropic's structured-output schema rejects minimum/maximum/maxLength outright.
 const MIN_ESTIMATED_MINUTES = 15;
 const MAX_ESTIMATED_MINUTES = 240;
 const ESTIMATED_MINUTES_STEP = 15;
 const MAX_REASONING_LENGTH = 300;
 
-// Not caught specially by tripController.ts — falls into its existing generic
-// catch-and-500 branch, per this session's decision that a curation failure fails
-// the whole trip-generation request rather than silently falling back to the
-// uncurated pool.
+// Not caught specially by tripController.ts — falls into its generic catch-and-500
+// branch, since a curation failure fails the whole request rather than falling back.
 export class ClaudeCurationError extends Error {}
 
-// Anthropic's structured-output json_schema rejects minimum/maximum/multipleOf on
-// 'integer' properties and (per the same restriction family) maxLength on 'string'
-// properties outright — a 400 at request time, not a silently-unenforced constraint.
-// The 15-240/step-15/300-char bounds are therefore enforced entirely in code, in
-// extractSelectedPlaces below, and only described to Claude via the system prompt.
+// No minimum/maximum/maxLength here — those bounds are described to Claude only
+// via the system prompt and enforced in code (extractSelectedPlaces below).
 const CURATION_SCHEMA = {
   type: 'object',
   properties: {
@@ -104,9 +98,8 @@ function createClaudeClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
-// Clamps a Claude-provided estimate into the valid range and snaps it to the nearest
-// 15-minute step — used instead of rejecting the whole stop over a minor out-of-range
-// value, since losing a place entirely is a worse outcome than a slightly-adjusted estimate.
+// Clamps and snaps to the nearest 15-minute step, instead of rejecting the whole stop —
+// losing a place entirely is worse than a slightly-adjusted estimate.
 function normalizeEstimatedMinutes(rawMinutes: number): number {
   const clamped = Math.min(Math.max(rawMinutes, MIN_ESTIMATED_MINUTES), MAX_ESTIMATED_MINUTES);
   return Math.round(clamped / ESTIMATED_MINUTES_STEP) * ESTIMATED_MINUTES_STEP;
@@ -138,10 +131,8 @@ export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCurated
     throw new ClaudeCurationError('Claude curation response did not match the expected schema');
   }
 
-  // Defensive validation/normalization — the request schema only asserts type/required
-  // (Anthropic rejects minimum/maximum/multipleOf/maxLength on the schema itself), so the
-  // 15-240/step-15/300-char bounds are enforced here instead, based only on the prompt's
-  // instructions to Claude.
+  // Defensive validation/normalization — the request schema only asserts type/required,
+  // so the actual bounds are enforced here based only on the prompt's instructions to Claude.
   const entries: unknown[] = (parsed as CurationOutput).selectedPlaces;
   return entries
     .filter(
@@ -160,9 +151,7 @@ export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCurated
 }
 
 // Never trusts Claude's ids directly — filtering the *known* `places` array down to whichever
-// ids survived means a fabricated or mistyped googlePlaceId simply matches nothing, and the
-// result can never contain a Place that wasn't in the input. Also naturally dedupes (a
-// googlePlaceId can match at most one Place) and preserves the input's original order.
+// ids survived means a fabricated googlePlaceId simply matches nothing. Also naturally dedupes.
 export function filterToKnownStops(selectedStops: ClaudeCuratedStop[], places: Place[]): CuratedStop[] {
   const selectionByPlaceId = new Map(selectedStops.map((stop) => [stop.googlePlaceId, stop]));
   return places
@@ -184,9 +173,8 @@ export async function curatePlaces(
   const response = await client.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: MAX_OUTPUT_TOKENS,
-    // Sonnet 5 runs adaptive thinking by default when `thinking` is omitted. This is a
-    // bounded classification task sitting in the synchronous request path the user is
-    // waiting on, so disabling it explicitly keeps latency/cost predictable.
+    // Sonnet 5 runs adaptive thinking by default when omitted — disabled explicitly to
+    // keep latency/cost predictable for this synchronous request.
     thinking: { type: 'disabled' },
     system: CURATION_SYSTEM_PROMPT,
     output_config: {

@@ -19,8 +19,7 @@ export class Trip {
   @Column('date')
   endDate!: string;
 
-  // Nullable until v4 introduces the preferences wizard — v2's generate flow
-  // has nothing to populate this with yet.
+  // Nullable — older trips predating the preferences wizard have nothing here.
   @Column('jsonb', { nullable: true })
   preferences!: TripPreferences | null;
 

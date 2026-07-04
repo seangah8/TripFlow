@@ -3,9 +3,8 @@ import { generateTrip } from '../api/services/tripService';
 import { User } from '../entities/User';
 import type { TripPreferences } from '../types/trip';
 
-// Fixed, hand-picked test fixture — deliberately never varies between runs, so a human (or
-// Claude Code) can compare today's output against a previous run and immediately spot a
-// regression (an empty day, wildly off-theme places, a curated-count drop, a thrown error).
+// Fixed, hand-picked test fixture — deliberately never varies between runs, so a run can
+// be compared against a previous one to spot a regression.
 const TEST_CITY = 'Lisbon';
 const TEST_START_DATE = '2026-09-01';
 const TEST_END_DATE = '2026-09-04'; // 4 days
@@ -16,9 +15,8 @@ const TEST_PREFERENCES: TripPreferences = {
   budget: 'mid-range',
 };
 
-// Trip.ownerId is a real FK to users — this script needs some User row to
-// attach generated trips to. Fixed test email, reused (not recreated) across
-// runs; the password hash is never used since this account never logs in.
+// Trip.ownerId is a real FK to users — reused (not recreated) across runs;
+// the password hash is never used since this account never logs in.
 const TEST_OWNER_EMAIL = 'test-ai-pipeline@tripflow.local';
 
 async function getOrCreateTestOwner(): Promise<User> {

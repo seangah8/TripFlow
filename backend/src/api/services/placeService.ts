@@ -8,9 +8,8 @@ type Interest = TripPreferences['interests'][number];
 
 const SEARCH_TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
 
-// One textQuery phrase per interest — Google Places (New) searchText takes free-text queries
-// rather than a list of place types, so an interest becomes a natural-language phrase instead
-// of a structured type filter. Kept in sync with BLUE_PRINT.md Section 5's mapping table.
+// One textQuery phrase per interest — Google Places (New) searchText takes free-text
+// queries rather than a list of place types. Kept in sync with BLUE_PRINT.md's mapping table.
 const INTEREST_QUERY_PHRASES: Record<Interest, string> = {
   museums: 'museums and art galleries in {city}',
   food: 'restaurants, cafes and bakeries in {city}',
@@ -19,10 +18,8 @@ const INTEREST_QUERY_PHRASES: Record<Interest, string> = {
   shopping: 'shopping and markets in {city}',
 };
 
-// This baseline always runs alongside whichever interests are selected — without it, picking
-// only e.g. "food" would never surface a city's must-see landmarks, since nothing curates the
-// pool yet (that's v5). Also the sole query when no interests are selected, matching the
-// original broad-search behavior exactly.
+// Always runs alongside whichever interests are selected — without it, picking only e.g.
+// "food" would never surface a city's must-see landmarks. Also the sole query when no interests are selected.
 const BASELINE_QUERY_PHRASE = 'tourist attractions in {city}';
 
 // Pure and exported for unit testing — no network, no city-specific state beyond string
@@ -37,9 +34,8 @@ export function perQueryTarget(targetCount: number, queryCount: number): number 
   return Math.ceil(targetCount / queryCount);
 }
 
-// Only requesting the fields we actually store — Google bills searchText by
-// which fields are in this mask, so anything unused here costs nothing.
-// `nextPageToken` must be listed explicitly too, like any other response field.
+// Only requesting the fields we actually store — Google bills searchText by which
+// fields are in this mask. `nextPageToken` must be listed explicitly too.
 const FIELD_MASK = [
   'places.id',
   'places.displayName',
@@ -81,9 +77,8 @@ async function fetchSearchTextPage(
   return (await response.json()) as GooglePlacesSearchTextResponse;
 }
 
-// Paginates a single query via nextPageToken until `targetCount` places are collected or
-// Google runs out of pages, so repeat generates for the same city (v2's day timeline needs
-// more than ~20 places per trip) don't just return the same set.
+// Paginates a single query via nextPageToken until `targetCount` places are collected
+// or Google runs out of pages — a trip needs more than one page's worth of places.
 async function collectPlacesForQuery(queryText: string, apiKey: string, targetCount: number): Promise<GooglePlace[]> {
   const collected: GooglePlace[] = [];
   let pageToken: string | undefined;
@@ -101,10 +96,8 @@ async function collectPlacesForQuery(queryText: string, apiKey: string, targetCo
   return collected;
 }
 
-// Runs one query per selected interest plus the always-on baseline (see
-// BASELINE_QUERY_PHRASE), splitting `targetCount` evenly across however many queries are
-// active. With zero interests this collapses to exactly one query at the full target count —
-// identical to v1-v3's single broad search.
+// Runs one query per selected interest plus the always-on baseline, splitting `targetCount`
+// evenly across however many queries are active.
 export async function fetchAndUpsertPlaces(city: string, targetCount = 20, interests: Interest[] = []): Promise<Place[]> {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
@@ -114,34 +107,26 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20, inter
   const queries = buildSearchQueries(city, interests);
   const targetPerQuery = perQueryTarget(targetCount, queries.length);
 
-  // Queries are independent of each other, so run them concurrently — Google Places'
-  // per-project quota is a queries-per-minute budget, not a concurrency limit, so a
-  // handful of simultaneous calls from one generate isn't meaningfully riskier than
-  // firing them seconds apart, just faster. PAGE_TOKEN_DELAY_MS still applies within
-  // each query's own pagination loop, which genuinely does need to stay sequential.
+  // Queries are independent, so run them concurrently — Google's quota is a
+  // queries-per-minute budget, not a concurrency limit. Pagination within each query still runs sequentially.
   const perQueryResults = await Promise.all(
     queries.map((queryText) => collectPlacesForQuery(queryText, apiKey, targetPerQuery)),
   );
-  // collectPlacesForQuery only stops paginating once it has *at least* targetPerQuery —
-  // a single page can return up to 20, well past that floor — so cap each query's own
-  // contribution here. Without this, the baseline query (always first) fills most of the
-  // final list before later interest queries get a fair share, since the final slice below
-  // just keeps whichever results happen to be at the front.
+  // collectPlacesForQuery stops once it has *at least* targetPerQuery, which can overshoot —
+  // cap each query's contribution here so the baseline doesn't crowd out interest queries.
   const collected = perQueryResults.flatMap((queryResults) => queryResults.slice(0, targetPerQuery));
 
   if (collected.length === 0) {
     return [];
   }
 
-  // Multiple queries can surface the same place (e.g. a landmark that's both the baseline
-  // result and a "museums" result) — dedupe before upserting, since a single multi-row upsert
-  // can't affect the same row twice in one statement.
+  // Multiple queries can surface the same place — dedupe before upserting, since a
+  // single multi-row upsert can't affect the same row twice in one statement.
   const deduped = [...new Map(collected.map((googlePlace) => [googlePlace.id, googlePlace])).values()];
 
   const rows = deduped
-    // Filter before slicing — otherwise a result missing `location` inside the
-    // first `targetCount` entries silently shrinks the final count instead of
-    // being backfilled by a valid entry already sitting just past the cutoff.
+    // Filter before slicing — otherwise a missing `location` inside the first `targetCount`
+    // entries silently shrinks the count instead of being backfilled from past the cutoff.
     .filter(
       (googlePlace): googlePlace is GooglePlace & { location: GooglePlaceLocation } =>
         Boolean(googlePlace.location),
@@ -162,14 +147,12 @@ export async function fetchAndUpsertPlaces(city: string, targetCount = 20, inter
     }));
 
   const placeRepository = AppDataSource.getRepository(Place);
-  // TypeORM's QueryDeepPartialEntity recurses into object-typed columns; for a
-  // jsonb column typed as Record<string, unknown>, that recursion can't line up
-  // with the plain object literals above, so the cast is required here.
+  // TypeORM's QueryDeepPartialEntity recurses into object-typed columns; for the jsonb
+  // openingHours column, that recursion can't line up with the plain literals above.
   await placeRepository.upsert(rows as QueryDeepPartialEntity<Place>[], ['googlePlaceId']);
 
-  // Re-query the exact set just upserted rather than the whole city catalog —
-  // scopes the response to what this fetch actually returned, not whatever
-  // has accumulated for this city across prior generates.
+  // Re-query the exact set just upserted rather than the whole city catalog — scopes the
+  // response to what this fetch returned, not prior generates for this city.
   return placeRepository.find({
     where: { googlePlaceId: In(rows.map((row) => row.googlePlaceId)) },
   });

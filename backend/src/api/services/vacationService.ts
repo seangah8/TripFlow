@@ -22,14 +22,8 @@ export function dateRangesOverlap(aStart: string, aEnd: string, bStart: string, 
   return aStart <= bEnd && bStart <= aEnd;
 }
 
-// Checks ownership BEFORE invoking the expensive Places/Claude pipeline, so an
-// invalid/unowned vacationId never triggers wasted external API calls. Returns
-// null (not a thrown error) so the controller can 404, matching getTripById's
-// null convention. Every other check (past-date, overlap) runs after ownership —
-// an unowned vacationId must always 404 regardless of what else is wrong with
-// the request, not surface a different error first — but before generateTrip
-// (neither a bad date nor a conflicting range should trigger a wasted Places/
-// Claude call).
+// Checks ownership BEFORE the expensive Places/Claude pipeline, so an invalid/unowned
+// vacationId never triggers wasted external API calls. Returns null (not a thrown error) so the controller can 404.
 export async function addTripToVacation(
   vacationId: string,
   city: string,
@@ -64,9 +58,8 @@ export async function deleteVacation(vacationId: string, ownerId: string): Promi
   return (result.affected ?? 0) > 0;
 }
 
-// Dashboard card list — one query for vacations, one grouped query for all their
-// trips (city/dates only, no place/stop join), avoiding both an eager relation
-// and an N+1 per-vacation trip query.
+// Dashboard card list — one query for vacations, one grouped query for all their trips,
+// avoiding both an eager relation and an N+1 per-vacation trip query.
 export async function listVacationsByOwner(ownerId: string): Promise<VacationResponse[]> {
   const vacationRepository = AppDataSource.getRepository(Vacation);
   const vacations = await vacationRepository.find({ where: { ownerId }, order: { createdAt: 'DESC' } });

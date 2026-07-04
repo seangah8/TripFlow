@@ -19,18 +19,15 @@ const MAX_TRIP_DAYS = 14;
 const PLACES_PER_DAY_TARGET = 5;
 const MIN_PLACES_TARGET = 20;
 
-// Pre-curation fetch pool: scales with trip length instead of a flat ~90-100, so short
-// trips don't pay for a maximal Google fetch they don't need. Capped at FETCH_POOL_MAX on
-// the normal path (attempt 0); retries deliberately escalate past that cap (see below),
-// since the whole point of retrying is asking Google for more than the normal ceiling.
+// Pre-curation fetch pool: scales with trip length so short trips don't pay for a maximal
+// Google fetch. Capped at FETCH_POOL_MAX on the normal path; retries escalate past that cap.
 const FETCH_POOL_PER_DAY = 10;
 const FETCH_POOL_MIN = 60;
 const FETCH_POOL_MAX = 100;
 const RETRY_FETCH_INCREMENT = 40;
 
 // 1 initial attempt + 2 retries. Each attempt is a full Google pagination round plus a
-// Claude call, so diminishing returns kick in fast — if two pool enlargements don't help,
-// the city/preference combination genuinely doesn't have enough matching places.
+// Claude call, so diminishing returns kick in fast.
 const MAX_CURATION_ATTEMPTS = 3;
 
 // Pure and exported for unit testing — same pattern as placeService.ts's perQueryTarget.
@@ -44,9 +41,8 @@ export function computeFetchPoolSize(dayCount: number, attempt: number): number 
 export class InvalidTripDateRangeError extends Error {}
 
 function parseDateOnly(dateStr: string): Date {
-  // Native <input type="date"> always sends YYYY-MM-DD, but the backend is a
-  // real request boundary — validate the format defensively rather than
-  // trusting the frontend's own validation.
+  // The backend is a real request boundary — validate the format defensively
+  // rather than trusting the frontend's own validation.
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     throw new InvalidTripDateRangeError(`Invalid date: ${dateStr}`);
   }
@@ -106,9 +102,8 @@ export async function generateTrip(
     const candidatePlaces = await fetchAndUpsertPlaces(city, fetchPoolSize, preferences.interests);
 
     if (attempt > 0 && candidatePlaces.length <= previousCandidateCount) {
-      // Google has nothing further to offer for this city/query set — re-running curation
-      // on an unchanged pool won't help, so stop escalating and keep the best result found
-      // so far.
+      // Google has nothing further to offer this city/query set — stop escalating
+      // and keep the best result found so far.
       console.warn(
         `Google returned no additional candidates for ${city} on retry ${attempt}; stopping retries early.`,
       );
@@ -120,11 +115,8 @@ export async function generateTrip(
     try {
       curated = await curatePlaces(candidatePlaces, preferences, days.length);
     } catch (error) {
-      // A retry's failure (network, refusal, malformed output) shouldn't discard an
-      // already-usable earlier result and fail the whole request — keep the best result
-      // found so far and stop retrying. With nothing usable yet, there's no fallback, so
-      // it still propagates (matches the decision that a curation failure fails the whole
-      // request when there's no curated result to serve instead).
+      // A retry's failure shouldn't discard an already-usable earlier result — keep the
+      // best found so far. With nothing usable yet, there's no fallback, so it propagates.
       if (bestCuratedStops.length === 0) {
         throw error;
       }
@@ -132,9 +124,8 @@ export async function generateTrip(
       break;
     }
 
-    // Curation is non-deterministic and each attempt's candidate pool differs, so a later
-    // attempt can return fewer places than an earlier one — keep the largest result seen
-    // across attempts, not just the last one.
+    // Curation is non-deterministic, so a later attempt can return fewer places than
+    // an earlier one — keep the largest result seen across attempts.
     if (curated.length > bestCuratedStops.length) {
       bestCuratedStops = curated;
     }
@@ -153,16 +144,13 @@ export async function generateTrip(
   }
 
   if (bestCuratedStops.length === 0) {
-    // Every attempt curated down to nothing usable (Claude selected nothing, or every
-    // selected id failed to match a real place) — this is a curation failure, not a
-    // legitimately thin trip, so it fails loudly rather than silently persisting an
-    // empty itinerary.
+    // Every attempt curated down to nothing usable — a curation failure, not a
+    // legitimately thin trip, so it fails loudly instead of persisting an empty itinerary.
     throw new ClaudeCurationError(`Claude curated zero usable places for ${city} after ${MAX_CURATION_ATTEMPTS} attempt(s)`);
   }
 
-  // clustering.ts's contract stays Place[]-only (deterministic geography, no reason to
-  // know about time estimates/reasoning) — the per-stop details are re-attached below,
-  // after clustering assigns each place to a day.
+  // clustering.ts's contract stays Place[]-only — per-stop details are re-attached
+  // below, after clustering assigns each place to a day.
   const bestCuratedPlaces = bestCuratedStops.map((stop) => stop.place);
   const detailsByPlaceId = new Map(
     bestCuratedStops.map((stop) => [stop.place.googlePlaceId, { estimatedMinutes: stop.estimatedMinutes, reasoning: stop.reasoning }]),
@@ -174,9 +162,8 @@ export async function generateTrip(
     tripRepository.create({ city, startDate, endDate, preferences, ownerId, vacationId: vacationId ?? null }),
   );
 
-  // Each draft carries its own `place` directly, so the response's stop-to-place
-  // pairing never depends on database round-trip ordering — only the generated
-  // id (below) does.
+  // Each draft carries its own `place` directly, so the stop-to-place pairing
+  // never depends on database round-trip ordering.
   const stopDrafts: StopDraft[] = [];
   for (const date of days) {
     const dayPlaces = placesByDay.get(date)!;
@@ -200,12 +187,8 @@ export async function generateTrip(
     }),
   );
 
-  // insert() issues one real multi-row INSERT (unlike save(), which issues one
-  // INSERT per entity) — Postgres's RETURNING clause preserves the input VALUES
-  // order, so identifiers[i] reliably corresponds to stopEntities[i]/stopDrafts[i].
-  // Cast needed for the same reason as placeService.ts's upsert() call: TypeORM's
-  // QueryDeepPartialEntity recurses into jsonb-typed relations (Place.openingHours)
-  // in a way that doesn't line up with the entity instances created above.
+  // insert() issues one multi-row INSERT; Postgres's RETURNING clause preserves input order.
+  // Cast needed since TypeORM's QueryDeepPartialEntity mishandles the jsonb openingHours relation.
   const insertResult = await tripStopRepository.insert(stopEntities as QueryDeepPartialEntity<TripStop>[]);
 
   const stopsByDay = new Map<string, TripStopResponse[]>(days.map((date) => [date, []]));
@@ -233,10 +216,8 @@ export async function generateTrip(
   };
 }
 
-// Reconstructs the exact TripGenerateResponse shape from persisted rows — lets
-// GET /api/trips/:id (v4, pulled forward from v7) serve the same contract a
-// fresh generate returns, so the frontend doesn't need two response shapes.
-
+// Reconstructs the exact TripGenerateResponse shape from persisted rows, so the
+// frontend doesn't need two response shapes for generate vs. fetch.
 export async function getTripById(tripId: string, ownerId: string): Promise<TripGenerateResponse | null> {
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.findOne({ where: { id: tripId, ownerId } });
@@ -278,10 +259,8 @@ export async function getTripById(tripId: string, ownerId: string): Promise<Trip
   };
 }
 
-// Card lists (dashboard, vacation hub) show the trip's first stop's photo —
-// "first" meaning earliest by (date, order), not insertion order. One query
-// per batch of trip ids, reduced in JS rather than a per-trip query, since
-// there's no cheap "first row per group" in TypeORM's query builder API.
+// "First" meaning earliest by (date, order), not insertion order. One query per
+// batch of trip ids, reduced in JS — no cheap "first row per group" in TypeORM.
 export async function getFirstStopPhotoByTripId(tripIds: string[]): Promise<Map<string, string | null>> {
   const photoByTripId = new Map<string, string | null>();
   if (tripIds.length === 0) {

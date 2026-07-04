@@ -41,8 +41,7 @@ export async function listVacationsHandler(req: Request, res: Response): Promise
 
 export async function getVacationHandler(req: Request, res: Response): Promise<void> {
   // Same reasoning as tripController.ts's getTripHandler: a malformed uuid can never
-  // match a real vacation, so treat it as "not found" rather than letting it reach
-  // Postgres as a type error the catch block can't distinguish from a real failure.
+  // match a real vacation, so treat it as "not found" rather than a 500.
   if (!UUID_PATTERN.test(req.params.id)) {
     res.status(404).json({ error: 'Vacation not found' });
     return;
@@ -102,10 +101,8 @@ export async function addTripToVacationHandler(req: Request, res: Response): Pro
   }
 
   try {
-    // assertStartDateNotInPast now runs inside addTripToVacation itself, after its
-    // ownership check — so an unowned/nonexistent vacation always 404s regardless
-    // of what else is wrong with the request, instead of a past-date request
-    // leaking a 400 before ownership is ever checked.
+    // assertStartDateNotInPast runs inside addTripToVacation, after its ownership check —
+    // so an unowned vacation always 404s instead of leaking a 400 first.
     const trip = await addTripToVacation(req.params.id, city.trim(), startDate, endDate, preferences, req.userId);
     if (!trip) {
       res.status(404).json({ error: 'Vacation not found' });

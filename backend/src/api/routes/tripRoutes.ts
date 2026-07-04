@@ -4,8 +4,8 @@ import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// Every route in this file needs auth in v7 — a blanket guard here is harder
-// to accidentally miss than repeating authMiddleware on each route.
+// Every route in this file needs auth — a blanket guard here is harder to
+// accidentally miss than repeating authMiddleware on each route.
 router.use(authMiddleware);
 
 router.post('/trips/generate', generateTripHandler);

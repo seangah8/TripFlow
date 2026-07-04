@@ -10,11 +10,8 @@ import vacationRoutes from './api/routes/vacationRoutes';
 const app = express();
 const port = process.env.PORT;
 
-// Frontend and backend run on different ports (5173 / 3001), so the browser
-// treats them as different origins — CORS must allow the frontend's origin
-// explicitly for its direct fetch() calls to succeed. `credentials: true` is
-// required (alongside a non-wildcard origin) for the browser to send/accept
-// the httpOnly session cookie across that origin difference.
+// Frontend/backend run on different ports, so the browser treats them as different
+// origins — `credentials: true` (with a non-wildcard origin) lets the httpOnly cookie cross that gap.
 app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());

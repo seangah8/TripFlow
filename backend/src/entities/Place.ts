@@ -4,9 +4,8 @@ import { numericTransformer } from '../utils/numericTransformer';
 // TypeORM populates these fields at runtime (not via constructor), so the
 // `!` assertions below are safe despite strict property initialization.
 
-// Column types are always given explicitly (e.g. 'varchar') rather than left
-// for TypeORM to infer from TS types — tsx/esbuild doesn't reliably emit the
-// decorator metadata TypeORM needs to guess a column type, which crashes at startup.
+// Column types are always given explicitly — tsx/esbuild doesn't reliably emit the
+// decorator metadata TypeORM needs to infer one, which crashes at startup.
 @Entity('places')
 export class Place {
   @PrimaryGeneratedColumn('uuid')
@@ -30,17 +29,15 @@ export class Place {
   @Column('decimal', { precision: 3, scale: 1, nullable: true, transformer: numericTransformer })
   rating!: number | null;
 
-  // Google's photo *resource name* (e.g. "places/ABC/photos/XYZ"), not a direct
-  // image URL — the frontend builds the actual URL using its own public Maps
-  // key, so the backend's secret GOOGLE_PLACES_API_KEY never reaches the client.
+  // Google's photo *resource name*, not a direct image URL — the frontend builds
+  // the actual URL with its own public Maps key, so the secret key never reaches the client.
   @Column('varchar', { nullable: true })
   photoName!: string | null;
 
   @Column('jsonb', { nullable: true })
   openingHours!: Record<string, unknown> | null;
 
-  // Google's primaryTypeDisplayName — stored from v1 alongside the rest of the
-  // searchText response, unused in the UI until v6's stop list/detail panel.
+  // Google's primaryTypeDisplayName, shown in the stop list/detail panel.
   @Column('varchar', { nullable: true })
   category!: string | null;
 }

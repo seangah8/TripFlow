@@ -17,12 +17,8 @@ export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 
 export class InvalidTripStartDateError extends Error {}
 
-// Dates are plain YYYY-MM-DD strings with no timezone info, so the server can't know
-// the client's local "today" exactly. Comparing against UTC-yesterday (not UTC-today)
-// gives a client behind UTC (e.g. UTC-8 in the evening, when UTC has already rolled
-// over) a full day of slack so their genuine local "today" is never wrongly rejected —
-// the tradeoff is being up to a day more lenient than strictly necessary for clients
-// ahead of UTC, which is preferable to falsely blocking a valid same-day pick.
+// Comparing against UTC-yesterday (not UTC-today) gives a client behind UTC a full day
+// of slack so their genuine local "today" is never wrongly rejected.
 export function assertStartDateNotInPast(startDate: string): void {
   const yesterday = new Date();
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
@@ -32,10 +28,8 @@ export function assertStartDateNotInPast(startDate: string): void {
   }
 }
 
-// Real request boundary, same reasoning as the date validation below: don't trust the
-// wizard's own client-side validation to have kept the shape honest.
-// Exported so vacationController.ts's "add a city" handler can reuse this instead of
-// duplicating the same validation.
+// Real request boundary — don't trust the wizard's own client-side validation.
+// Exported so vacationController.ts's "add a city" handler can reuse this.
 export function isValidPreferences(value: unknown): value is TripPreferences {
   if (!value || typeof value !== 'object') {
     return false;
@@ -45,9 +39,8 @@ export function isValidPreferences(value: unknown): value is TripPreferences {
     typeof vibe === 'string' &&
     VALID_VIBES.has(vibe as TripPreferences['vibe']) &&
     Array.isArray(interests) &&
-    // Bounded by VALID_INTERESTS.size and deduped — without this, an array of many
-    // (possibly duplicated) valid values would pass and turn into that many sequential
-    // Google Places calls in fetchAndUpsertPlaces, one real API request per entry.
+    // Bounded and deduped — otherwise a duplicated array would turn into that many
+    // sequential Google Places calls, one real API request per entry.
     interests.length <= VALID_INTERESTS.size &&
     new Set(interests).size === interests.length &&
     interests.every((interest) => VALID_INTERESTS.has(interest)) &&
@@ -89,10 +82,8 @@ export async function generateTripHandler(req: Request, res: Response): Promise<
 }
 
 export async function getTripHandler(req: Request, res: Response): Promise<void> {
-  // Trip.id is a uuid column — a malformed id would otherwise reach Postgres and throw
-  // a type error there, which the catch block below can't distinguish from a real
-  // failure. An invalid format can never match a real trip, so treat it the same as
-  // "not found" rather than a 500.
+  // Trip.id is a uuid column — a malformed id would otherwise reach Postgres and throw a
+  // type error the catch block can't distinguish from a real failure.
   if (!UUID_PATTERN.test(req.params.id)) {
     res.status(404).json({ error: 'Trip not found' });
     return;

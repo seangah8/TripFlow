@@ -15,9 +15,8 @@ function squaredDistance(a: Centroid, b: Centroid): number {
   return dLat * dLat + dLng * dLng;
 }
 
-// Deterministic seed: no RNG anywhere in this module. Centroids start at the
-// midpoint of N equal slices of the overall longitude range, all at the mean
-// latitude — same input always produces the same starting point.
+// Deterministic seed: no RNG. Centroids start at the midpoint of N equal
+// slices of the longitude range, all at the mean latitude.
 function seedCentroids(places: Place[], n: number): Centroid[] {
   let minLng = places[0]!.lng;
   let maxLng = places[0]!.lng;
@@ -86,27 +85,16 @@ function buildClusters(places: Place[], assignments: number[], n: number): Place
   return clusters;
 }
 
-// Fair per-day target for an as-even-as-possible split of `total` places
-// across `n` days: divmod gives sizes that differ by at most 1 (the first
-// `total % n` days get one extra), capped at MAX_CLUSTER_SIZE so no day is
-// ever asked to hold more than the app's practical per-day ceiling.
+// Divmod gives sizes that differ by at most 1 (the first `total % n` days get
+// one extra), capped at MAX_CLUSTER_SIZE.
 function computeTargetSizes(total: number, n: number): number[] {
   const base = Math.floor(total / n);
   const remainder = total % n;
   return Array.from({ length: n }, (_, i) => Math.min(i < remainder ? base + 1 : base, MAX_CLUSTER_SIZE));
 }
 
-// Moves places from over-target clusters to under-target ones so every day's
-// count is as even as possible, instead of leaving some days empty while
-// others overflow. Centroids are fixed snapshots from the k-means result
-// (not recomputed as balancing proceeds) — each move picks, among every
-// place in every currently-over-target cluster, whichever one sits nearest
-// to the neediest recipient's centroid, so a filled-in "extra" stop is
-// always geographically close to the day it lands on, not just whatever
-// happened to be least valuable somewhere else in the city. Rating only
-// breaks exact distance ties. Deterministic: all ties (recipient selection,
-// distance ties) broken by lowest index / first-found, via strict `>`/`<`
-// comparisons, same rule as everywhere else in this module.
+// Moves places from over-target clusters to under-target ones, each move picking
+// whichever candidate sits nearest to the neediest recipient's centroid (rating only breaks distance ties).
 function balanceClusters(clusters: Place[][], centroids: Centroid[], n: number): Place[][] {
   const total = clusters.reduce((sum, cluster) => sum + cluster.length, 0);
   const targets = computeTargetSizes(total, n);
@@ -148,9 +136,8 @@ function balanceClusters(clusters: Place[][], centroids: Centroid[], n: number):
     working[recipient]!.push(moved!);
   }
 
-  // Only reachable when total exceeds n * MAX_CLUSTER_SIZE — even a
-  // perfectly even split would overflow some day, so there's genuinely
-  // nowhere left to send the excess; drop it (highest-rated survive).
+  // Only reachable when total exceeds n * MAX_CLUSTER_SIZE — drop the
+  // excess, highest-rated survive.
   return working.map((cluster) =>
     cluster.length <= MAX_CLUSTER_SIZE
       ? cluster
@@ -168,18 +155,8 @@ function clusterCentroid(cluster: Place[]): Centroid {
   return { lat: latSum / cluster.length, lng: lngSum / cluster.length };
 }
 
-// Local-search cleanup that runs after sizes are already balanced: repeatedly
-// scans every pair of days and every pair of their places, swapping two
-// places (one per day) whenever doing so reduces the combined squared
-// distance to each day's own center — i.e. whenever a place actually sits
-// closer to the OTHER day than the one it's currently in. A single greedy
-// transfer (balanceClusters) can be forced to pull a place from far away
-// when only one donor has spare capacity; this pass catches and corrects
-// that after the fact. A swap always trades one place for one place, so it
-// never disturbs the even split balanceClusters already established.
-// Deterministic: scans in a fixed index order and takes the first improving
-// swap found; stops once a full pass finds nothing left to improve, or after
-// MAX_SWAP_PASSES as a safety bound.
+// Runs after sizes are balanced: swaps two places (one per day) whenever it reduces combined
+// squared distance to each day's center — corrects picks balanceClusters got right-sized but not closest.
 function improveCompactness(clusters: Place[][], n: number): Place[][] {
   const working = clusters.map((cluster) => [...cluster]);
 
@@ -211,9 +188,8 @@ function improveCompactness(clusters: Place[][], n: number): Place[][] {
   return working;
 }
 
-// K-means clustering of places into `days.length` geographic groups, one per
-// day. Pure function, no DB/network dependency, fully deterministic — same
-// input always produces the same output (BLUE_PRINT.md's locked rule).
+// K-means clustering of places into `days.length` geographic groups. Pure function,
+// fully deterministic — same input always produces the same output.
 export function clusterPlacesByDay(places: Place[], days: string[]): Map<string, Place[]> {
   const n = days.length;
   if (n === 0 || places.length === 0) {
@@ -232,9 +208,8 @@ export function clusterPlacesByDay(places: Place[], days: string[]): Map<string,
     centroids = recomputeCentroids(places, assignments, centroids, n);
     assignments = assignPlaces(places, centroids);
   }
-  // Final sync: centroids still reflect the assignment from one step before
-  // the loop's last reassignment — recompute once more so balancing measures
-  // distance against each day's true final geographic center.
+  // Final sync: centroids still reflect the assignment from one step before the
+  // loop's last reassignment — recompute once more for the true final center.
   centroids = recomputeCentroids(places, assignments, centroids, n);
 
   const clusters = improveCompactness(balanceClusters(buildClusters(places, assignments, n), centroids, n), n);

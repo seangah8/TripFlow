@@ -107,10 +107,8 @@ describe('clusterPlacesByDay', () => {
     const sizes = days.map((d) => result.get(d)!.length);
     expect(sizes.reduce((a, b) => a + b, 0)).toBe(places.length);
 
-    // 11 / 3 = target sizes [4, 4, 3] (as even as possible), and the outlier's
-    // own (otherwise 1-member) cluster is filled with whichever nearby places
-    // (from its two geographic neighbors) sit closest to it, not just
-    // whichever happened to be lowest-rated somewhere else in the city.
+    // 11 / 3 = target sizes [4, 4, 3] (as even as possible); the outlier's own cluster is
+    // filled with whichever nearby places sit closest to it.
     expect(new Set(idsOf(result.get(days[0]!)!))).toEqual(new Set(['a0', 'a1', 'a2', 'a3']));
     expect(new Set(idsOf(result.get(days[1]!)!))).toEqual(new Set(['outlier', 'a4', 'b0', 'b1']));
     expect(new Set(idsOf(result.get(days[2]!)!))).toEqual(new Set(['b2', 'b3', 'b4']));
@@ -158,10 +156,8 @@ describe('clusterPlacesByDay', () => {
 
   it('reaches a local optimum: no swap between any two days would reduce their combined spread from center', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03'];
-    // Three loose regions with a deliberately uneven raw size (5/4/3, forcing
-    // balanceClusters to pull places across regions to reach even targets),
-    // which is exactly the scenario that can leave a correctable bad
-    // placement on the table for improveCompactness to clean up.
+    // Deliberately uneven raw size (5/4/3), forcing balanceClusters to pull places across
+    // regions — exactly the scenario improveCompactness needs to clean up.
     const places = [
       ...[0, 0.5, 1, 1.5, 2].map((lng, i) => makePlace(`x${i}`, 0, lng)),
       ...[20, 20.5, 21, 21.5].map((lng, i) => makePlace(`y${i}`, 0, lng)),
@@ -171,10 +167,8 @@ describe('clusterPlacesByDay', () => {
     const result = clusterPlacesByDay(places, days);
     const clusters = days.map((d) => result.get(d)!);
 
-    // No two places (one from each of any two days) should be swappable for
-    // a lower combined squared distance to their respective day's center —
-    // i.e. the result can't be trivially improved by moving a place to the
-    // day it actually belongs closer to.
+    // No two places (one from each of any two days) should be swappable for a lower
+    // combined squared distance to their respective day's center.
     for (let i = 0; i < clusters.length; i++) {
       for (let j = i + 1; j < clusters.length; j++) {
         const ci = clusters[i]!;
