@@ -1,4 +1,5 @@
 import { useMutation, type UseMutationResult } from '@tanstack/react-query';
+import { apiFetch } from '../lib/api';
 import type { Trip, TripPreferences } from '../types/trip';
 
 export interface GenerateTripInput {
@@ -8,22 +9,11 @@ export interface GenerateTripInput {
   preferences: TripPreferences;
 }
 
-async function generateTrip(input: GenerateTripInput): Promise<Trip> {
-  const url = new URL('/api/trips/generate', import.meta.env.VITE_API_URL);
-  const response = await fetch(url, {
+function generateTrip(input: GenerateTripInput): Promise<Trip> {
+  return apiFetch<Trip>('/api/trips/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-
-  if (!response.ok) {
-    // Backend always responds with { error: string } (tripController.ts) —
-    // surface that instead of a generic message so the UI can distinguish
-    // "invalid date range" from "Google Places failed".
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? 'Failed to generate trip');
-  }
-  return response.json();
 }
 
 // useMutation over useQuery — this is a POST that triggers a side effect
