@@ -3,28 +3,14 @@ import type { JSX } from 'react';
 import { NewVacationModal } from '../components/NewVacationModal';
 import { VacationCard } from '../components/VacationCard';
 import { useVacations } from '../hooks/useVacations';
-import { useLogout } from '../hooks/useLogout';
-import { useAuthStore } from '../store/authStore';
 import '../styles/DashboardPage.scss';
 
 export function DashboardPage(): JSX.Element {
   const [isNewVacationOpen, setIsNewVacationOpen] = useState(false);
-  const user = useAuthStore((state) => state.user);
-  const { mutate: logout, isPending: isLoggingOut } = useLogout();
   const { data: vacations, isLoading, isError } = useVacations();
 
   return (
     <div className="dashboard-page">
-      <header className="dashboard-page__header">
-        <h1>TripFlow</h1>
-        <div className="dashboard-page__account">
-          <span>{user?.email}</span>
-          <button type="button" onClick={() => logout()} disabled={isLoggingOut}>
-            {isLoggingOut ? 'Logging out…' : 'Log out'}
-          </button>
-        </div>
-      </header>
-
       <button type="button" className="dashboard-page__new-vacation" onClick={() => setIsNewVacationOpen(true)}>
         New Vacation
       </button>

@@ -3,14 +3,15 @@
 // without duplicating rules into every bundle (Vite compiles each imported
 // .scss independently, so anything that emits actual CSS must stay out of
 // this file — see main.scss for the one place global rules live).
-//
-// Color/spacing/radius/shadow values below match the app's current
-// hardcoded palette 1:1 — this step is pure scaffolding, not a redesign.
-// The palette itself gets reconsidered in Step 1.
+@use 'sass:color';
 
-// Color
-$color-primary: #2563eb;
+// Color — primary + app background chosen in Step 1. Everything else below
+// still matches the app's pre-existing hardcoded values; each gets revisited
+// in its own step rather than being reflowed here all at once.
+$color-primary: #35aae6;
 $color-primary-light: #eff6ff;
+// Literally midway between the primary and white, per Step 1's brief.
+$color-bg-app: color.mix($color-primary, white, 30%);
 $color-border: #ccc;
 $color-border-muted: #ddd;
 $color-text: #111827;

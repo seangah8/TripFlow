@@ -14,3 +14,23 @@ body {
   font-family: tokens.$font-body;
   color: tokens.$color-text;
 }
+
+// The authenticated app's top-level layout: a fixed-height column with the
+// Header on top and the routed page filling the rest. TripPage relies on
+// this chain (height: 100% down to .trip-page) to size its map to the
+// remaining viewport instead of its own 100vh, which would double-count
+// the Header's height.
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-shell__content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: tokens.$color-bg-app;
+}

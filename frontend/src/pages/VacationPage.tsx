@@ -27,10 +27,7 @@ export function VacationPage(): JSX.Element {
 
   return (
     <div className="vacation-page">
-      <header className="vacation-page__header">
-        <Link to="/">TripFlow</Link>
-        <h1>{getVacationLabel(vacation)}</h1>
-      </header>
+      <h1 className="vacation-page__title">{getVacationLabel(vacation)}</h1>
 
       <button type="button" className="vacation-page__add-city" onClick={() => setIsWizardOpen(true)}>
         Add a city
