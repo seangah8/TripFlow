@@ -1,3 +1,5 @@
+@use './tokens';
+
 .trip-page {
   display: flex;
   flex-direction: column;
@@ -15,9 +17,22 @@
   color: crimson;
 }
 
+// Floats over the map's top-right, shifted left of that corner so it never
+// sits under the map SDK's own built-in fullscreen control button.
 .trip-page__maps-export {
-  margin-left: auto;
-  color: #2563eb;
+  position: absolute;
+  top: tokens.$space-md;
+  right: 5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  border-radius: tokens.$radius-md;
+  background: tokens.$color-primary;
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: tokens.$shadow-md;
 }
 
 .trip-page__content {

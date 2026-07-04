@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { DayTimeline } from '../components/DayTimeline';
 import { PlacesMap } from '../components/PlacesMap';
 import { StopList } from '../components/StopList';
@@ -55,16 +56,6 @@ export function TripPage(): JSX.Element {
       <header className="trip-page__header">
         <Link to={`/vacations/${vacationId}`}>← Back to vacation</Link>
         <h1>{trip.city}</h1>
-        {currentDayStops.length > 0 && (
-          <a
-            className="trip-page__maps-export"
-            href={buildGoogleMapsDirectionsUrl(currentDayStops)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open in Google Maps
-          </a>
-        )}
       </header>
       <div className="trip-page__content">
         <div className="trip-page__side-panel">
@@ -72,6 +63,17 @@ export function TripPage(): JSX.Element {
         </div>
         <main className="trip-page__map">
           <PlacesMap stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />
+          {currentDayStops.length > 0 && (
+            <a
+              className="trip-page__maps-export"
+              href={buildGoogleMapsDirectionsUrl(currentDayStops)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <MapPin size={16} />
+              Open in Google Maps
+            </a>
+          )}
           <DayTimeline days={trip.days} selectedDate={selectedDate} onSelectDate={handleSelectDate} />
         </main>
       </div>

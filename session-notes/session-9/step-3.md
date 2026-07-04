@@ -17,4 +17,8 @@
 - The merge was an explicit interaction redesign, not just a visual pass — the user wanted the list to contain its own detail view via in-place expansion instead of a page-level toggle.
 - Row styling was deliberately left structurally unchanged (per the "just recolor" answer) — only the accent color moved from the old hardcoded blue to `tokens.$color-primary`.
 
+## Follow-up tweaks (post-checkpoint, in browser)
+- `.stop-list__item` gained `flex-shrink: 0` — without it, flex items in a column with `overflow-y: auto` shrink to fit rather than overflowing/scrolling, so a long list was squeezing rows instead of scrolling. Now rows keep their natural height and the list scrolls.
+- Custom scrollbar: transparent track, primary-colored thumb, via `scrollbar-width`/`scrollbar-color` (Firefox) and `::-webkit-scrollbar*` (Chromium). Uses a new `$color-scroll` token (added by the user directly in `_tokens.scss`) rather than the raw primary color.
+
 Suggested commit title: `feat: merge stop list and detail panel into an inline-expanding accordion`
