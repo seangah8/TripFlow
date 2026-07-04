@@ -5,6 +5,7 @@ import { AppDataSource } from './config/data-source';
 import healthRoutes from './api/routes/healthRoutes';
 import tripRoutes from './api/routes/tripRoutes';
 import authRoutes from './api/routes/authRoutes';
+import vacationRoutes from './api/routes/vacationRoutes';
 
 const app = express();
 const port = process.env.PORT;
@@ -21,6 +22,7 @@ app.use(cookieParser());
 app.use('/api', healthRoutes);
 app.use('/api', authRoutes);
 app.use('/api', tripRoutes);
+app.use('/api', vacationRoutes);
 
 AppDataSource.initialize()
   .then(() => {
