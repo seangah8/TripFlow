@@ -40,3 +40,12 @@ export interface TripGenerateResponse {
   endDate: string;
   days: TripDayResponse[];
 }
+
+// Lightweight response shape for GET /api/trips (the dashboard's card list) —
+// deliberately excludes stops/places (no trip_stops join required).
+export interface TripSummaryResponse {
+  tripId: string;
+  city: string;
+  startDate: string;
+  endDate: string;
+}

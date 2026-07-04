@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/data-source';
 import { generateTrip } from '../api/services/tripService';
+import { User } from '../entities/User';
 import type { TripPreferences } from '../types/trip';
 
 // Fixed, hand-picked test fixture — deliberately never varies between runs, so a human (or
@@ -15,11 +16,29 @@ const TEST_PREFERENCES: TripPreferences = {
   budget: 'mid-range',
 };
 
+// Trip.ownerId is a real FK to users — this script needs some User row to
+// attach generated trips to. Fixed test email, reused (not recreated) across
+// runs; the password hash is never used since this account never logs in.
+const TEST_OWNER_EMAIL = 'test-ai-pipeline@tripflow.local';
+
+async function getOrCreateTestOwner(): Promise<User> {
+  const userRepository = AppDataSource.getRepository(User);
+  const existing = await userRepository.findOne({ where: { email: TEST_OWNER_EMAIL } });
+  if (existing) {
+    return existing;
+  }
+  return userRepository.save(
+    userRepository.create({ email: TEST_OWNER_EMAIL, passwordHash: 'unused-test-fixture-account' }),
+  );
+}
+
 async function run(): Promise<void> {
   await AppDataSource.initialize();
 
+  const owner = await getOrCreateTestOwner();
+
   const start = Date.now();
-  const trip = await generateTrip(TEST_CITY, TEST_START_DATE, TEST_END_DATE, TEST_PREFERENCES);
+  const trip = await generateTrip(TEST_CITY, TEST_START_DATE, TEST_END_DATE, TEST_PREFERENCES, owner.id);
   const elapsedSeconds = ((Date.now() - start) / 1000).toFixed(1);
 
   const totalStops = trip.days.reduce((sum, day) => sum + day.stops.length, 0);

@@ -6,7 +6,13 @@ import type { Place } from '../../entities/Place';
 import { fetchAndUpsertPlaces } from './placeService';
 import { curatePlaces, ClaudeCurationError } from './claudeService';
 import { clusterPlacesByDay } from '../../utils/clustering';
-import type { TripDayResponse, TripGenerateResponse, TripPreferences, TripStopResponse } from '../../types/trip';
+import type {
+  TripDayResponse,
+  TripGenerateResponse,
+  TripPreferences,
+  TripStopResponse,
+  TripSummaryResponse,
+} from '../../types/trip';
 import type { CuratedStop } from '../../types/claudeCuration';
 
 const MAX_TRIP_DAYS = 14;
@@ -86,6 +92,7 @@ export async function generateTrip(
   startDate: string,
   endDate: string,
   preferences: TripPreferences,
+  ownerId: string,
 ): Promise<TripGenerateResponse> {
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
@@ -163,7 +170,7 @@ export async function generateTrip(
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.save(
-    tripRepository.create({ city, startDate, endDate, preferences }),
+    tripRepository.create({ city, startDate, endDate, preferences, ownerId }),
   );
 
   // Each draft carries its own `place` directly, so the response's stop-to-place
@@ -228,9 +235,10 @@ export async function generateTrip(
 // Reconstructs the exact TripGenerateResponse shape from persisted rows — lets
 // GET /api/trips/:id (v4, pulled forward from v7) serve the same contract a
 // fresh generate returns, so the frontend doesn't need two response shapes.
-export async function getTripById(tripId: string): Promise<TripGenerateResponse | null> {
+
+export async function getTripById(tripId: string, ownerId: string): Promise<TripGenerateResponse | null> {
   const tripRepository = AppDataSource.getRepository(Trip);
-  const trip = await tripRepository.findOne({ where: { id: tripId } });
+  const trip = await tripRepository.findOne({ where: { id: tripId, ownerId } });
   if (!trip) {
     return null;
   }
@@ -267,4 +275,21 @@ export async function getTripById(tripId: string): Promise<TripGenerateResponse 
     endDate: trip.endDate,
     days: responseDays,
   };
+}
+
+// Dashboard card list — deliberately no trip_stops join; cards only ever
+// show city/dates (see TripSummaryResponse).
+export async function listTripsByOwner(ownerId: string): Promise<TripSummaryResponse[]> {
+  const tripRepository = AppDataSource.getRepository(Trip);
+  const trips = await tripRepository.find({
+    where: { ownerId },
+    order: { createdAt: 'DESC' },
+  });
+
+  return trips.map((trip) => ({
+    tripId: trip.id,
+    city: trip.city,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+  }));
 }

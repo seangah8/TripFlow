@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { generateTrip, getTripById, InvalidTripDateRangeError } from '../services/tripService';
+import { generateTrip, getTripById, listTripsByOwner, InvalidTripDateRangeError } from '../services/tripService';
 import type { TripGenerateRequest, TripPreferences } from '../../types/trip';
 
 const VALID_VIBES = new Set<TripPreferences['vibe']>(['relaxed', 'moderate', 'packed']);
@@ -56,7 +56,7 @@ export async function generateTripHandler(req: Request, res: Response): Promise<
   }
 
   try {
-    const trip = await generateTrip(city.trim(), startDate, endDate, preferences);
+    const trip = await generateTrip(city.trim(), startDate, endDate, preferences, req.userId);
     res.json(trip);
   } catch (error) {
     if (error instanceof InvalidTripDateRangeError) {
@@ -79,7 +79,7 @@ export async function getTripHandler(req: Request, res: Response): Promise<void>
   }
 
   try {
-    const trip = await getTripById(req.params.id);
+    const trip = await getTripById(req.params.id, req.userId);
     if (!trip) {
       res.status(404).json({ error: 'Trip not found' });
       return;
@@ -88,5 +88,15 @@ export async function getTripHandler(req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('Failed to load trip', error);
     res.status(500).json({ error: 'Failed to load trip' });
+  }
+}
+
+export async function listTripsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const trips = await listTripsByOwner(req.userId);
+    res.json(trips);
+  } catch (error) {
+    console.error('Failed to list trips', error);
+    res.status(500).json({ error: 'Failed to list trips' });
   }
 }
