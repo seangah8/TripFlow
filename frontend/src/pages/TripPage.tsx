@@ -6,6 +6,7 @@ import { PlacesMap } from '../components/PlacesMap';
 import { StopDetailPanel } from '../components/StopDetailPanel';
 import { StopList } from '../components/StopList';
 import { useTrip } from '../hooks/useTrip';
+import { buildGoogleMapsDirectionsUrl } from '../utils/googleMapsExport';
 import type { TripStop } from '../types/trip';
 import '../styles/TripPage.scss';
 
@@ -60,6 +61,16 @@ export function TripPage(): JSX.Element {
       <header className="trip-page__header">
         <Link to="/">TripFlow</Link>
         <h1>{trip.city}</h1>
+        {currentDayStops.length > 0 && (
+          <a
+            className="trip-page__maps-export"
+            href={buildGoogleMapsDirectionsUrl(currentDayStops)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open in Google Maps
+          </a>
+        )}
       </header>
       <div className="trip-page__content">
         <div className="trip-page__side-panel">
