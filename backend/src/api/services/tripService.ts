@@ -93,6 +93,7 @@ export async function generateTrip(
   endDate: string,
   preferences: TripPreferences,
   ownerId: string,
+  vacationId?: string,
 ): Promise<TripGenerateResponse> {
   const days = getDateRange(startDate, endDate);
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
@@ -170,7 +171,7 @@ export async function generateTrip(
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trip = await tripRepository.save(
-    tripRepository.create({ city, startDate, endDate, preferences, ownerId }),
+    tripRepository.create({ city, startDate, endDate, preferences, ownerId, vacationId: vacationId ?? null }),
   );
 
   // Each draft carries its own `place` directly, so the response's stop-to-place

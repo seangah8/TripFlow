@@ -13,11 +13,13 @@ const VALID_INTERESTS = new Set<TripPreferences['interests'][number]>([
 const VALID_GROUP_TYPES = new Set<TripPreferences['groupType']>(['solo', 'couple', 'family', 'friends']);
 const VALID_BUDGETS = new Set<TripPreferences['budget']>(['budget', 'mid-range', 'luxury']);
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Real request boundary, same reasoning as the date validation below: don't trust the
 // wizard's own client-side validation to have kept the shape honest.
-function isValidPreferences(value: unknown): value is TripPreferences {
+// Exported so vacationController.ts's "add a city" handler can reuse this instead of
+// duplicating the same validation.
+export function isValidPreferences(value: unknown): value is TripPreferences {
   if (!value || typeof value !== 'object') {
     return false;
   }
