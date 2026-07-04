@@ -1,0 +1,22 @@
+@use './tokens';
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  // Centers it on the cross axis wherever it sits as a flex item — e.g.
+  // horizontally in LoginPage's centered column form, harmlessly a no-op
+  // in Header's row (already vertically centered by .app-header itself).
+  align-self: center;
+  gap: 0.4rem;
+  color: tokens.$color-primary;
+}
+
+.logo__icon {
+  flex-shrink: 0;
+}
+
+.logo__wordmark {
+  // font-size set inline per instance (Logo.tsx), scaled to the icon's size prop.
+  font-weight: 700;
+  color: inherit;
+}

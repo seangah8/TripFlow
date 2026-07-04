@@ -19,9 +19,8 @@
   box-shadow: tokens.$shadow-md;
   text-align: center;
 
-  h1 {
-    margin-bottom: 0;
-    color: tokens.$color-primary;
+  .logo {
+    margin-bottom: 0.5rem;
   }
 
   h2 {

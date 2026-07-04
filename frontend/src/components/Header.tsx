@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useLogout } from '../hooks/useLogout';
+import { Logo } from './Logo';
 import '../styles/Header.scss';
 
 export function Header(): JSX.Element {
@@ -11,7 +12,7 @@ export function Header(): JSX.Element {
   return (
     <header className="app-header">
       <Link to="/" className="app-header__brand">
-        TripFlow
+        <Logo />
       </Link>
       <div className="app-header__account">
         <span className="app-header__email">{user?.email}</span>

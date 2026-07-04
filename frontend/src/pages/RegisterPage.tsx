@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent, JSX } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRegister } from '../hooks/useRegister';
+import { Logo } from '../components/Logo';
 import '../styles/RegisterPage.scss';
 
 export function RegisterPage(): JSX.Element {
@@ -29,7 +30,7 @@ export function RegisterPage(): JSX.Element {
   return (
     <div className="auth-page">
       <form className="auth-page__form" onSubmit={handleSubmit}>
-        <h1>TripFlow</h1>
+        <Logo size={30} />
         <h2>Register</h2>
         <input
           type="email"

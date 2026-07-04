@@ -11,10 +11,10 @@
   box-shadow: tokens.$shadow-sm;
 }
 
+// Logo.scss owns the icon/wordmark's own color and typography — this just
+// strips the <Link>'s default underline.
 .app-header__brand {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: tokens.$color-primary;
+  display: inline-flex;
   text-decoration: none;
 }
 

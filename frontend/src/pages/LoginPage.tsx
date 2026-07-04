@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent, JSX } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLogin } from '../hooks/useLogin';
+import { Logo } from '../components/Logo';
 import '../styles/LoginPage.scss';
 
 export function LoginPage(): JSX.Element {
@@ -21,7 +22,7 @@ export function LoginPage(): JSX.Element {
   return (
     <div className="auth-page">
       <form className="auth-page__form" onSubmit={handleSubmit}>
-        <h1>TripFlow</h1>
+        <Logo size={30} />
         <h2>Log in</h2>
         <input
           type="email"
