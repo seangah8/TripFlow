@@ -115,6 +115,7 @@ This is the most important section. Every session must follow this flow exactly.
 
 ### 5.1 Starting a session
 
+0. Run `/start-session` first — a cheap orientation briefing (current version, what the last session built, anything flagged as outstanding) using `CLAUDE.md`/`BLUE_PRINT.md`/`session-notes` instead of re-exploring the codebase. Skip this only if you're mid-session already and know the current state.
 1. Run `/plan` — always, before writing a single line of code.
 2. The plan must include:
    - The user-facing outcome: what the user can see or do in the browser by the end. **This can never be "nothing visible" — if a version's plan doesn't produce something demoable, the scope is wrong; split it differently.**
@@ -171,10 +172,12 @@ After completing a step, do all four of the following, in this order, before tou
 
 | Script | When | Why |
 |--------|------|-----|
-| `/code-review` | After the last step of every session | Checks the diff for correctness bugs |
-| `/sync-blueprint` | After `/code-review` passes, every session | Reconciles `BLUE_PRINT.md`/`CLAUDE.md` with what actually got built, from `session-notes` |
+| `/review-session` | After the last step of every session | Checks that session's own diff for correctness bugs, scoped via `session-notes` instead of the whole repo — the routine, cheap replacement for a full `/code-review` pass |
+| `/sync-blueprint` | After `/review-session` passes, every session | Reconciles `BLUE_PRINT.md`/`CLAUDE.md` with what actually got built, from `session-notes` |
 | `/security-review` | Before v9 (final submission) | Checks for injection, XSS, exposed credentials |
 | `/test-ai-pipeline` | After any change to the AI pipeline (v5 onward) | Re-runs the pipeline against a fixed test input |
+
+`/code-review` remains available to invoke directly any time a deeper, full-branch multi-agent pass is wanted (e.g. before a major milestone or before merging to main) — it's just no longer the routine per-session step.
 
 **Cost note:** When running `/code-review`, do not use Opus-tier models for the finder/verifier subagents — use the default model. This project runs on a limited API budget, and a full `/code-review` pass spawns many parallel subagents (8 finders + up to 10 verifiers); Opus-tier across that many calls burns through it fast for no meaningful gain at this codebase's size.
 
@@ -243,8 +246,10 @@ Never write a step file speculatively or mid-step.
 
 | Skill | When to use |
 |-------|-------------|
+| `/start-session` | Start of a session, before `/plan` — cheap briefing on current version/status using `CLAUDE.md`/`BLUE_PRINT.md`/`session-notes`, no source-code reading |
+| `/review-session` | End of session, in place of `/code-review` — reviews only that session's changes for correctness bugs, scoped via `session-notes` |
 | `/test-ai-pipeline` | After any change to the AI pipeline files (v3 for clustering, v5+ for the rest) |
-| `/sync-blueprint` | End of session, after `/code-review` passes — reconciles `BLUE_PRINT.md`/`CLAUDE.md` with what the session's `session-notes` show actually got built |
+| `/sync-blueprint` | End of session, after `/review-session` passes — reconciles `BLUE_PRINT.md`/`CLAUDE.md` with what the session's `session-notes` show actually got built |
 
 ---
 
