@@ -3,7 +3,6 @@ import type { JSX } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { DayTimeline } from '../components/DayTimeline';
 import { PlacesMap } from '../components/PlacesMap';
-import { StopDetailPanel } from '../components/StopDetailPanel';
 import { StopList } from '../components/StopList';
 import { useTrip } from '../hooks/useTrip';
 import { buildGoogleMapsDirectionsUrl } from '../utils/googleMapsExport';
@@ -38,11 +37,6 @@ export function TripPage(): JSX.Element {
     return trip.days.find((day) => day.date === selectedDate)?.stops ?? [];
   }, [trip, selectedDate]);
 
-  const selectedStop = useMemo<TripStop | null>(
-    () => currentDayStops.find((stop) => stop.tripStopId === selectedStopId) ?? null,
-    [currentDayStops, selectedStopId],
-  );
-
   if (isLoading) {
     return <p className="trip-page__status">Loading trip…</p>;
   }
@@ -74,11 +68,7 @@ export function TripPage(): JSX.Element {
       </header>
       <div className="trip-page__content">
         <div className="trip-page__side-panel">
-          {selectedStop ? (
-            <StopDetailPanel stop={selectedStop} onBack={() => setSelectedStopId(null)} />
-          ) : (
-            <StopList stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />
-          )}
+          <StopList stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />
         </div>
         <main className="trip-page__map">
           <PlacesMap stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />

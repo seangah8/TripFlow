@@ -18,4 +18,8 @@
 - Formatting the date from the raw string digits (not `Date`) avoids any UTC/timezone shift — this project's dates are always local to the trip's city, never converted.
 - Extracting `DayTimeline.scss` out of `TripPage.scss` was already planned (Step 2 in the session plan), and became necessary anyway once the styling diverged enough to warrant its own file.
 
+## Follow-up tweaks (post-checkpoint, in browser)
+- Cards widened, and a `day-timeline--compact` variant (`DayTimeline.tsx`'s `COMPACT_THRESHOLD = 8`) was added: past 8 days in a trip, cards automatically shrink so the row doesn't overflow past the map's edges.
+- Vertical padding is intentionally identical between the compact/non-compact variants (`0.25rem` both) — only horizontal padding differs (`1.6rem` vs `0.8rem`) — so card height never changes regardless of trip length, only width does.
+
 Suggested commit title: `feat: float day picker over the map with a compact date-pill design`

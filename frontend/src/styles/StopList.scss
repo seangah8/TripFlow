@@ -1,32 +1,64 @@
+@use './tokens';
+
 .stop-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem;
+  gap: tokens.$space-sm;
+  padding: tokens.$space-md;
   overflow-y: auto;
   height: 100%;
+
+  // Firefox
+  scrollbar-width: thin;
+  scrollbar-color: tokens.$color-scroll transparent;
+
+  // Chromium/WebKit
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: tokens.$color-primary;
+    border-radius: 999px;
+  }
 }
 
 .stop-list__empty {
-  color: #666;
+  color: tokens.$color-text-muted;
   font-size: 0.9rem;
 }
 
 .stop-list__item {
   display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border: 1px solid tokens.$color-border;
+  border-radius: tokens.$radius-sm;
+  background: tokens.$color-bg;
+  overflow: hidden;
+
+  &--expanded {
+    border-color: tokens.$color-primary;
+    background: tokens.$color-primary-light;
+  }
+}
+
+.stop-list__header {
+  display: flex;
   align-items: flex-start;
+  width: 100%;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background: white;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
   cursor: pointer;
   text-align: left;
-
-  &--selected {
-    border-color: #2563eb;
-    background: #eff6ff;
-  }
 }
 
 .stop-list__order {
@@ -40,6 +72,11 @@
   background: #e5e7eb;
   font-size: 0.8rem;
   font-weight: 600;
+
+  .stop-list__item--expanded & {
+    background: tokens.$color-primary;
+    color: white;
+  }
 }
 
 .stop-list__details {
@@ -55,5 +92,59 @@
 
 .stop-list__category {
   font-size: 0.85rem;
-  color: #666;
+  color: tokens.$color-text-muted;
+}
+
+// Slide-open accordion: animating grid-template-rows (rather than height)
+// lets the collapsed/expanded track size go to/from the content's natural
+// height without JS-measuring it.
+.stop-list__expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms ease;
+}
+
+.stop-list__item--expanded .stop-list__expand {
+  grid-template-rows: 1fr;
+}
+
+.stop-list__expand-inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.stop-list__minutes {
+  font-weight: 600;
+  margin: 0.5rem 0 0;
+}
+
+.stop-list__reasoning {
+  margin: 0.5rem 0 0;
+  line-height: 1.4;
+}
+
+.stop-list__photo {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: tokens.$radius-sm;
+  margin-top: 0.75rem;
+}
+
+.stop-list__photo-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 160px;
+  border-radius: tokens.$radius-sm;
+  background: tokens.$color-bg-muted;
+  margin-top: 0.75rem;
+}
+
+.stop-list__fallback-icon {
+  width: 30%;
+  height: 30%;
+  color: #9ca3af;
 }

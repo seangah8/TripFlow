@@ -11,7 +11,8 @@
 $color-primary: #35aae6;
 $color-primary-light: #eff6ff;
 // Literally midway between the primary and white, per Step 1's brief.
-$color-bg-app: color.mix($color-primary, white, 30%);
+$color-bg-app: color.mix($color-primary, white, 40%);
+$color-scroll: color.mix($color-primary, white, 5%);
 $color-border: #ccc;
 $color-border-muted: #ddd;
 $color-text: #111827;
