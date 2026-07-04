@@ -6,6 +6,7 @@ import { Place } from '../entities/Place';
 import { Trip } from '../entities/Trip';
 import { TripStop } from '../entities/TripStop';
 import { User } from '../entities/User';
+import { Vacation } from '../entities/Vacation';
 
 config();
 
@@ -18,5 +19,5 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   namingStrategy: new SnakeNamingStrategy(),
   synchronize: true,
-  entities: [Place, Trip, TripStop, User],
+  entities: [Place, Trip, TripStop, User, Vacation],
 });

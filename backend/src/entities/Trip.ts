@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import type { TripPreferences } from '../types/trip';
 import { User } from './User';
+import { Vacation } from './Vacation';
 
 // TypeORM populates these fields at runtime (not via constructor), so the
 // `!` assertions below are safe despite strict property initialization.
@@ -31,6 +32,13 @@ export class Trip {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })
   owner!: User;
+
+  @Column('uuid', { nullable: true })
+  vacationId!: string | null;
+
+  @ManyToOne(() => Vacation, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'vacation_id' })
+  vacation!: Vacation | null;
 
   @CreateDateColumn()
   createdAt!: Date;
