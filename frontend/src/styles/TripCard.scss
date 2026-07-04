@@ -19,8 +19,8 @@
 .trip-card__link {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem;
+  gap: 1.15rem;
+  padding: 1.15rem;
   text-decoration: none;
   color: inherit;
 }
@@ -49,8 +49,8 @@
 
 .trip-card__photo {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,10 +75,11 @@
 
 .trip-card__city {
   margin: 0;
+  font-size: 1.1rem;
 }
 
 .trip-card__dates {
-  margin: 0.25rem 0 0;
+  margin: 0.35rem 0 0;
   color: tokens.$color-text-muted;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }

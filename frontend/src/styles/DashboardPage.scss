@@ -1,29 +1,43 @@
+@use './tokens';
+
 .dashboard-page {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-}
-
-.dashboard-page__new-vacation {
-  align-self: flex-start;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  border: none;
-  border-radius: 8px;
-  background: #2563eb;
-  color: white;
-  cursor: pointer;
+  padding: 2rem 2.5rem;
 }
 
 .dashboard-page__status {
-  color: #666;
+  color: tokens.$color-text-muted;
 }
 
 .dashboard-page__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  // Fixed 4-per-row, matching VacationPage's grid (Step 7) — responsive
+  // collapsing for narrower viewports is handled separately in Step 13.
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
+}
+
+// Square, like VacationCard, so it sits flush among the vacation cards —
+// sits as the last tile in the grid, same "add the next one here" pattern
+// as VacationPage's add-city tile.
+.dashboard-page__new-vacation {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: tokens.$space-sm;
+  border: 2px dashed rgba(255, 255, 255, 0.9);
+  border-radius: tokens.$radius-md;
+  background: transparent;
+  color: tokens.$color-text-muted;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: tokens.$color-primary;
+    color: tokens.$color-primary;
+  }
 }

@@ -1,22 +1,87 @@
 @use './tokens';
 
-// Kept as plain hardcoded values here (not yet tokenized) — Step 8 is this
-// card's dedicated design pass; only the new delete affordance below uses
-// tokens, added as a scoped exception in this session.
 .vacation-card {
   position: relative;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  transition: border-color 0.15s;
+  aspect-ratio: 1 / 1;
+  // Without this, grid items default to stretching to the row's height —
+  // and once a row auto-sizes taller than a perfect square (e.g. from
+  // another card's content), aspect-ratio loses that fight and the card
+  // grows past square, pushing its visual center down. align-self: start
+  // lets aspect-ratio (not the row) determine this card's height.
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid tokens.$color-border;
+  border-radius: tokens.$radius-md;
+  background: tokens.$color-bg;
+  box-shadow: tokens.$shadow-sm;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 
   &:hover {
-    border-color: #2563eb;
+    border-color: tokens.$color-primary;
+    box-shadow: tokens.$shadow-md;
   }
 }
 
+// Faint photo collage sitting behind the card's text — one image per trip
+// (up to 4), laid out so the space is used well regardless of count: 1 fills
+// the square, 2 splits side by side, 3 is one tall + two stacked, 4 is a
+// plain 2x2 grid.
+.vacation-card__collage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  opacity: 0.16;
+
+  &--count-1 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  &--count-2 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  &--count-3 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+
+    .vacation-card__collage-img:first-child {
+      grid-row: 1 / span 2;
+    }
+  }
+
+  &--count-4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+.vacation-card__collage-img {
+  // min-width/height: 0 override the grid item's automatic minimum size,
+  // which otherwise defaults to the <img>'s own intrinsic (natural) size —
+  // without this, a tall/narrow source photo can force its row to claim
+  // more than its fair 1fr share, unevenly splitting the 2x2 grid even
+  // though the container itself is a perfect square.
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .vacation-card__link {
-  display: block;
-  padding: 1rem 1.25rem;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 1rem;
+  text-align: center;
   text-decoration: none;
   color: inherit;
 }
@@ -27,12 +92,13 @@
 
 .vacation-card__trip-count {
   margin: 0;
-  color: #666;
+  color: tokens.$color-text-muted;
 }
 
 // Sits on top of the card, outside the <Link>, so it never triggers navigation.
 .vacation-card__delete {
   position: absolute;
+  z-index: 2;
   top: 0.5rem;
   right: 0.5rem;
   display: flex;

@@ -29,9 +29,10 @@
 
 .vacation-page__grid {
   display: grid;
-  // Fixed 4-per-row, per user request — responsive collapsing for narrower
-  // viewports is handled separately in Step 13's mobile pass.
-  grid-template-columns: repeat(4, 1fr);
+  // Fixed 3-per-row (widened from 4 so the bigger trip cards below have
+  // room) — responsive collapsing for narrower viewports is handled
+  // separately in Step 13's mobile pass.
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
@@ -43,7 +44,7 @@
   align-items: center;
   justify-content: center;
   gap: tokens.$space-sm;
-  min-height: 100px;
+  min-height: 140px;
   padding: 1.25rem;
   // Bright near-white so the dashed outline reads clearly against the
   // page's blue-tinted background, instead of the low-contrast gray token.
