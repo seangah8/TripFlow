@@ -1,12 +1,12 @@
 # TripFlow — BLUE_PRINT
 
-> Single source of truth: what we're building, in what order, and why. A versioned workflow: each version (v0–v10) is a complete, working, demoable vertical slice — backend and frontend together — with intelligence layered on top of the previous version, never a backend-only session with nothing visible in the browser. One version per session (Session 1 ships v1, Session 2 ships v2, etc.). Treat decisions here as locked once approved.
+> Single source of truth: what we're building, in what order, and why. A versioned workflow: each version (v0–v9) is a complete, working, demoable vertical slice — backend and frontend together — with intelligence layered on top of the previous version, never a backend-only session with nothing visible in the browser. One version per session (Session 1 ships v1, Session 2 ships v2, etc.). Treat decisions here as locked once approved.
 
 ---
 
 ## 1. App Overview
 
-**What it is:** An AI-assisted vacation planner. The user picks a city (later: dates, preferences, a hotel), generates a day-by-day itinerary built from real Google Places data, geographically clustered, and — from v5 onward — curated and explained by Claude.
+**What it is:** An AI-assisted vacation planner. The user picks a city (later: dates, preferences), generates a day-by-day itinerary built from real Google Places data, geographically clustered, and — from v5 onward — curated and explained by Claude.
 
 **Core principle (unchanged from v0):** Places come from Google Places, never invented. Claude only curates from what Google actually returned.
 
@@ -28,11 +28,15 @@
 | **v5** | Claude sits between the (now larger) Google fetch and clustering, filtering to what's actually worth including | Per-stop time estimates, reasoning, opening hours, ordering |
 | **v6** | Claude also outputs `estimatedMinutes` + `reasoning` per stop; frontend gets the stop-list column + click-to-detail panel | Auth, opening hours, ordering |
 | **v7** | Login/register, trips dashboard (cards + "new trip"), `owner` on trips, "Open in Google Maps" export | Opening hours, ordering |
-| **v8** | Opening-hours awareness: drop stops closed on their assigned day; move a Sunday-only place onto a Sunday if the trip has one | Ordering |
-| **v9** | Hotel/address input; each day's stops get ordered from that starting point using position + hours | — |
-| **v10** *(speculative)* | `Vacation` wraps multiple `Trip`s — one vacation, multiple cities, each city still its own single-city trip exactly as v1–v9 built it | Everything else in `FUTURE_SCOPE.md` |
+| **v8** | `Vacation` wraps multiple `Trip`s — one vacation, multiple cities, each city still its own single-city trip exactly as v1–v7 built it | Opening hours, ordering, design polish |
+| **v9** | Design & polish — a legit-feeling, mobile-responsive UI pass across the whole app | — |
 
-v10 is a stretch goal, not a committed target — see its section below for why it doesn't need to be committed to be worth designing now. Anything not listed above (editable/draggable plans, multi-user/shared trips, place caching across cities, notifications, mobile) is genuinely out of scope — see `FUTURE_SCOPE.md`.
+v9 is the final committed version of this build. Opening-hours awareness and hotel-anchored
+ordering (originally scoped as v8/v9) were deliberately pushed out to make room for multi-city
+support and a real design pass — both are still fully designed, just tracked as legitimate
+continuations in `FUTURE_SCOPE.md` (which numbers them v10/v11) rather than committed targets.
+Anything else not listed above (multi-user/shared trips, editable/draggable plans) is tracked
+there too.
 
 ---
 
@@ -187,43 +191,31 @@ the chosen interests, not a generic "tourist attractions" search. Generating nav
 
 ---
 
-### v8 — Opening-hours awareness
+### v8 — Vacations wrap multiple trips
 
-**User-facing outcome:** A place closed on the day it would've landed on no longer shows up there. A place that's *only* open on Sundays gets steered toward a Sunday in the trip instead of a day it's actually closed.
+**The idea:** every version through v7 assumes one trip = one city. v8 removes that ceiling without touching any of v1–v7's actual logic: a new `Vacation` entity sits *above* `Trip`, and a vacation has one or more trips, each one still a single, ordinary city trip built exactly the way it always was. A trip to just Paris is a vacation with one trip in it; a trip to Paris then Rome then Barcelona is one vacation with three trips. Clustering and Claude curation stay scoped to a single trip/city — nothing about them needs to know vacations exist.
 
-**Backend:**
-- Reintroduce hours data into the pipeline: after clustering assigns real calendar dates, check each stop against `places.openingHours` for its assigned date.
-- If closed that day: prefer **reassigning** it to a different day in the trip where it's open (per the user's description — a place that's Sunday-only should move toward a Sunday, not just get dropped), falling back to dropping it only if no day in the trip works.
-
----
-
-### v9 — Hotel-anchored routing
-
-**User-facing outcome:** The wizard asks for a hotel/starting address. Each day's stops are now ordered — starting from that address, in a sequence that makes geographic sense and respects each stop's opening hours.
-
-**Backend:**
-- Hotel lat/lng becomes the clustering anchor point (replacing the city-bounding-box centroid init from v3).
-- Within each day, order stops using position + hours constraints (starting point known for the first time — this is what made ordering impossible to do honestly any earlier).
-
----
-
-### v10 — Vacations wrap multiple trips *(speculative — may never be reached)*
-
-**The idea:** every version through v9 assumes one trip = one city. v10 removes that ceiling without touching any of v1–v9's actual logic: a new `Vacation` entity sits *above* `Trip`, and a vacation has one or more trips, each one still a single, ordinary city trip built exactly the way it always was. A trip to just Paris is a vacation with one trip in it; a trip to Paris then Rome then Barcelona is one vacation with three trips. Clustering, Claude curation, opening-hours handling, and hotel-anchored routing all stay scoped to a single trip/city — nothing about them needs to know vacations exist.
-
-**User-facing outcome:** The homepage's primary action becomes "New Vacation" instead of "New Trip." Inside a vacation, "Add a city" runs the exact same per-city wizard (city → dates → preferences → confirm) built back in v1–v9, adding one more trip to the vacation each time. The dashboard shows vacations (which may span several cities) instead of bare trips.
+**User-facing outcome:** The homepage's primary action becomes "New Vacation" instead of "New Trip." Inside a vacation, "Add a city" runs the exact same per-city wizard (city → dates → preferences → confirm) built back in v1–v7, adding one more trip to the vacation each time. The dashboard shows vacations (which may span several cities) instead of bare trips.
 
 **Backend:**
 - New `Vacation` entity (see Section 4) — `Trip` gains a `vacationId` FK.
 - `POST /api/vacations` — creates a vacation (optional `name`).
-- `POST /api/vacations/:id/trips` — same request body as `POST /api/trips/generate` (city, dates, preferences, hotel address); runs the identical, unmodified trip-generation pipeline, just stamps the resulting `Trip` with the vacation it belongs to.
+- `POST /api/vacations/:id/trips` — same request body as `POST /api/trips/generate` (city, dates, preferences); runs the identical, unmodified trip-generation pipeline, just stamps the resulting `Trip` with the vacation it belongs to.
 - `GET /api/vacations` / `GET /api/vacations/:id` — list/load, each vacation nested with its full trips.
 
 **Frontend:**
 - Dashboard shows vacation cards (city list or custom name) instead of single-trip cards.
-- A vacation's view lets you switch between its trips (each trip's own map/day-timeline/stop-list view is unchanged from v6–v9) and add another city.
+- A vacation's view lets you switch between its trips (each trip's own map/day-timeline/stop-list view is unchanged from v6–v7) and add another city.
 
-**Why this is worth writing down even as a maybe:** it's the one piece of the whole roadmap that would be genuinely awkward to retrofit later if we didn't think about it now — every version from v2 onward writes `Trip` rows directly; if `Vacation` shows up as an afterthought, every one of those call sites needs revisiting. Designing it as a pure wrapper now means v1–v9 never have to change even if v10 is the one version that doesn't happen.
+**Why designing it as a pure wrapper matters:** every version from v2 onward writes `Trip` rows directly. Doing this properly now — rather than as an afterthought — means none of those call sites need revisiting; `Vacation` just stamps a `vacationId` onto the same unmodified pipeline.
+
+---
+
+### v9 — Design & polish
+
+**User-facing outcome:** The whole app gets a real visual pass — consistent styling, a look that reads as a finished product rather than a working prototype, and a layout that holds up on a phone screen, not just a desktop browser window. No new features; every screen built in v0–v8 gets revisited for polish and responsiveness.
+
+**Scope (to be detailed in this session's own `/plan`):** exact breakpoints, whether a shared design-token/variable file gets introduced (none exists yet — every `.scss` file currently hardcodes its own hex values), and which screens need the most work are decisions for that session's planning step, not locked here.
 
 ---
 
@@ -242,7 +234,7 @@ Same core entities as the original blueprint, annotated with the version each fi
 | city | varchar | ✅ | |
 | rating | decimal(3,1) | ❌ | nullable |
 | photoName | varchar | ❌ | nullable — Google's photo *resource name* (e.g. `places/ABC/photos/XYZ`), not a URL; actually populated from v6 (a v1–v5 field-mask gap left this null despite the column existing) — the frontend builds the real image URL itself using the public Maps key |
-| openingHours | jsonb | ❌ | nullable — fetched from v1 onward, unused until v8 |
+| openingHours | jsonb | ❌ | nullable — fetched from v1 onward, unused within the committed roadmap (would be used by the deferred opening-hours-awareness feature — see `FUTURE_SCOPE.md`) |
 | category | varchar | ❌ | nullable — Google's `primaryTypeDisplayName`, shown in the stop list from v6 |
 
 ### `trips` *(rows start existing at v2)*
@@ -255,14 +247,14 @@ Same core entities as the original blueprint, annotated with the version each fi
 | preferences | jsonb | ❌ | nullable until v4 introduces the wizard |
 | createdAt | timestamp | ✅ | |
 | ownerId | FK → users | ✅ | nullable v2–v6 (trips persisted without an owner); **required from v7** — existing dev rows were wiped rather than backfilled |
-| vacationId | FK → vacations | ❌ | v10 — nullable so v2–v9's direct trip-generation flow keeps working unchanged; every trip created via v10's vacation flow gets one |
+| vacationId | FK → vacations | ❌ | v8 — nullable so v2–v7's direct trip-generation flow keeps working unchanged; every trip created via v8's vacation flow gets one |
 
-### `vacations` *(v10, speculative)*
+### `vacations` *(v8)*
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | id | uuid | ✅ | PK |
 | name | varchar | ❌ | nullable — optional user label; dashboard falls back to listing the cities of its trips if empty |
-| owner | FK → users | ✅ | required — v10 is well after v7, auth already exists by then |
+| owner | FK → users | ✅ | required — v8 is well after v7, auth already exists by then |
 | createdAt | timestamp | ✅ | |
 
 ### `trip_stops` *(rows start existing at v2)*
@@ -271,8 +263,8 @@ Same core entities as the original blueprint, annotated with the version each fi
 | id | uuid | ✅ | PK |
 | tripId | FK → trips | ✅ | cascade delete |
 | placeId | FK → places | ✅ | no cascade |
-| date | date | ✅ | random assignment v2, geographic v3+, hours-aware v8 |
-| order | int | ✅ | stable rendering position until v9; a real recommended sequence from v9 onward |
+| date | date | ✅ | random assignment v2, geographic v3+ (hours-awareness deferred — see `FUTURE_SCOPE.md`) |
+| order | int | ✅ | stable rendering position (a real recommended sequence is deferred — see `FUTURE_SCOPE.md`) |
 | estimatedMinutes | int | ❌ | nullable until v6 |
 | reasoning | text | ❌ | nullable until v6 |
 
@@ -290,7 +282,6 @@ Request: `{ city }` → Response: `Place[]`
 Request grows over versions:
 - v2: `{ city, startDate, endDate }`
 - v4: `+ preferences`
-- v9: `+ hotelAddress` (or lat/lng, TBD when we get there)
 
 Response (stabilizes by v6):
 ```json
@@ -322,7 +313,7 @@ Response (stabilizes by v6):
 
 ### `POST /api/auth/register` / `POST /api/auth/login` *(v7)*
 
-### `POST /api/vacations`, `POST /api/vacations/:id/trips`, `GET /api/vacations`, `GET /api/vacations/:id` *(v10, speculative)*
+### `POST /api/vacations`, `POST /api/vacations/:id/trips`, `GET /api/vacations`, `GET /api/vacations/:id` *(v8)*
 The trip-adding endpoint takes the exact same body as `POST /api/trips/generate` — it's the same pipeline, just stamping the result with a `vacationId`.
 
 ---
@@ -365,7 +356,7 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 3. **Zustand (introduced in v7, for the auth store — the first genuine cross-tree shared-state need; v4/v6 both considered it and found plain `useState` sufficient) + TanStack Query (from v1). No Redux.**
 4. **`trip_stops` is the single source of truth for the generated plan** once it exists (v2+). No raw Claude response stored in the DB.
 5. **Build in vertical slices — for real this time.** Every version ends with something running in a browser. No version ships backend-only work.
-6. **Opening hours are always in local city time (from v8).** No timezone conversion needed, no timezone fields in the schema.
+6. **Opening hours are always in local city time (whenever opening-hours awareness is built — see `FUTURE_SCOPE.md`).** No timezone conversion needed, no timezone fields in the schema.
 
 ---
 

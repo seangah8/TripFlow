@@ -7,7 +7,7 @@ Read this file completely at the start of every session before doing anything el
 
 ## 1. What this project is
 
-**TripFlow** — an AI-assisted vacation planner, built as a sequence of versions (v0–v9, with a speculative v10), each a complete working slice — backend and frontend together. The app fetches real places from Google Places, groups them into days by geographic proximity (deterministic algorithm, from v3), and — from v5 onward — uses Claude to curate and explain the best stops for the whole trip before clustering ever runs.
+**TripFlow** — an AI-assisted vacation planner, built as a sequence of versions (v0–v9), each a complete working slice — backend and frontend together. The app fetches real places from Google Places, groups them into days by geographic proximity (deterministic algorithm, from v3), and — from v5 onward — uses Claude to curate and explain the best stops for the whole trip before clustering ever runs.
 
 **Full spec lives in `BLUE_PRINT.md`** — the versioned build plan, schema, and API contract are there. CLAUDE.md is the workflow guide; BLUE_PRINT.md is the source of truth for what we're building and in what order.
 
@@ -107,9 +107,8 @@ One version per session. Each version must end with something running in a brows
 | 5 | v5 | Claude curates the whole pool before clustering runs |
 | 6 | v6 | Claude adds time estimates + reasoning; stop list + detail panel in the UI |
 | 7 | v7 | Auth, trips dashboard, Google Maps export |
-| 8 | v8 | Opening-hours awareness (drop/reassign stops by day) |
-| 9 | v9 | Hotel-anchored clustering + real stop ordering |
-| 10 *(speculative)* | v10 | `Vacation` wraps multiple single-city `Trip`s — multi-city support with zero changes to v1–v9's logic |
+| 8 | v8 | `Vacation` wraps multiple single-city `Trip`s — multi-city support with zero changes to v1–v7's logic |
+| 9 | v9 | Design & polish — final committed version |
 
 See `BLUE_PRINT.md` Section 3 for the full detail per version.
 
@@ -229,7 +228,7 @@ See `BLUE_PRINT.md` Section 7 for the full list with version tags. Summary:
 3. **Zustand (introduced in v7 for the auth store — see BLUE_PRINT.md Section 6) + TanStack Query (from v1). No Redux.**
 4. **`trip_stops` is the single source of truth** once it exists (v2+).
 5. **Build in vertical slices — every version ends with something running in a browser.**
-6. **Opening hours are always in local city time (from v8).** No timezone conversion, no timezone fields.
+6. **Opening hours are always in local city time (whenever opening-hours awareness is built — see `FUTURE_SCOPE.md`).** No timezone conversion, no timezone fields.
 
 ---
 
@@ -263,4 +262,4 @@ Never write a step file speculatively or mid-step.
 
 ## 10. Out of scope
 
-See `FUTURE_SCOPE.md` — editable/draggable plans, multi-user/shared trips, city-level place caching, notifications, mobile app. Everything else discussed for this project has a version number in `BLUE_PRINT.md` (including multi-city trips, now speculative v10).
+See `FUTURE_SCOPE.md` — opening-hours awareness, hotel-anchored ordering, multi-user/shared trips, and editable/draggable plans are legitimate, designed continuations of this roadmap that didn't make the committed v0–v9 cut. Multi-city trips (via a `Vacation` wrapper), previously speculative, is now committed as v8.
