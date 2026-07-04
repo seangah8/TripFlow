@@ -158,15 +158,32 @@ the chosen interests, not a generic "tourist attractions" search. Generating nav
 **User-facing outcome:** Register/log in. The homepage becomes a trips dashboard — cards for each saved trip plus a "new trip" button, instead of jumping straight into the generator. Each day also gets an "Open in Google Maps" link.
 
 **Backend:**
-- `User` entity + `users` table, `POST /api/auth/register`, `POST /api/auth/login` (JWT), auth middleware.
-- `owner` FK on `Trip` — now actually populated (was nullable and unused since v2).
+- `User` entity + `users` table, `POST /api/auth/register`, `POST /api/auth/login` (JWT stored
+  in an httpOnly cookie, 24-hour session — confirmed, the frontend never handles the token
+  directly), plus `POST /api/auth/logout` and `GET /api/auth/me` (lets the frontend learn on app
+  load whether the cookie is still valid), auth middleware. Passwords hashed with `bcryptjs`
+  (pure JS, avoids a native build step).
+- `ownerId` FK on `Trip` — added as a **required** (`NOT NULL`) column rather than "populated
+  while staying nullable": every trip now needs a real owner, and since this was still
+  pre-launch dev data, the existing `trips`/`trip_stops` rows were wiped instead of carrying a
+  defensive-nullable column forward.
 - `GET /api/trips` (list, scoped to the logged-in user) — `GET /api/trips/:id` (reload) was
   pulled forward to v4 already (no auth check yet); this version adds the ownership scoping auth
-  now makes possible, plus the list endpoint the dashboard needs.
-- Google Maps export URL builder (waypoints link) for a given day.
+  now makes possible, plus the list endpoint the dashboard needs. All three trip routes
+  (`generate`, `:id`, list) now require a valid session — no more anonymous trip access.
 
 **Frontend:**
 - Login/register forms, trips dashboard, back-navigation.
+- Google Maps export (the per-day "Open in Google Maps" link) turned out to need **no backend
+  piece at all** — it's a pure frontend utility that string-formats each stop's lat/lng into a
+  Maps directions URL, a deliberate divergence from this doc's original "Backend" placement above.
+- Auth gating in `App.tsx` is a single top-level `if (!user)` branch rendering two different
+  route trees, not a `ProtectedRoute` wrapper component per protected route — simpler for
+  exactly 2 protected + 2 public routes, with nothing to remember to wrap as routes are added.
+- **Zustand introduced for real here** — the auth store (`{ user, setUser, clearUser }`) is the
+  first genuine cross-tree shared-state need this project has had (nav/logout, the dashboard,
+  and session-bootstrap routing in `App.tsx` all need "who's logged in" independently), ending
+  the deferral tracked since v4/v6.
 
 ---
 
@@ -237,7 +254,7 @@ Same core entities as the original blueprint, annotated with the version each fi
 | endDate | date | ✅ | introduced v2 |
 | preferences | jsonb | ❌ | nullable until v4 introduces the wizard |
 | createdAt | timestamp | ✅ | |
-| owner | FK → users | ❌ | nullable until v7 — trips persist without an owner from v2 onward |
+| ownerId | FK → users | ✅ | nullable v2–v6 (trips persisted without an owner); **required from v7** — existing dev rows were wiped rather than backfilled |
 | vacationId | FK → vacations | ❌ | v10 — nullable so v2–v9's direct trip-generation flow keeps working unchanged; every trip created via v10's vacation flow gets one |
 
 ### `vacations` *(v10, speculative)*
@@ -320,7 +337,12 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 - **v6 revisited this and still didn't need Zustand** — the stop-list/map/detail-panel/day-timeline
   state (active day, selected stop) turned out to be direct children of one page component, so
   plain lifted `useState` (the same pattern `DayTimeline` already used) covered it. Zustand
-  remains deferred until a genuine non-parent/child sharing need shows up.
+  remained deferred.
+- **v7 is where Zustand finally landed** — a minimal auth store (`{ user, setUser, clearUser }`).
+  "Who's logged in" is the first piece of state genuinely needed by unrelated parts of the tree
+  at once (the nav/logout button, the dashboard, and `App.tsx`'s session-bootstrap routing gate),
+  not a parent/child relationship plain `useState` could cover. TanStack Query still owns the
+  actual register/login/logout/me network calls; Zustand only holds the resulting user object.
 
 ### Map
 **Google Maps JavaScript SDK** (confirmed) — consistent with the Google Places data already driving the app. Requires the Maps JavaScript API enabled on the same Google Cloud project as the Places key; usage-billed beyond Google's free monthly credit. From v6, custom photo pins use `AdvancedMarker`, which additionally requires a Google Maps **Map ID** (`VITE_GOOGLE_MAPS_MAP_ID`) — a separate Cloud Console setup step (Maps Platform → Map Management), distinct from the API key.
@@ -340,7 +362,7 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 
 1. **Places come from Google Places — Claude only curates (from v5).** Claude never invents places, and it curates from the full pool, not a pre-cut geographic slice.
 2. **Clustering is deterministic code, not the LLM (from v3).** Same input always produces the same output.
-3. **Zustand (introduced once genuinely needed — not v4; the v4 wizard's state was simple enough for plain `useState`) + TanStack Query (from v1). No Redux.**
+3. **Zustand (introduced in v7, for the auth store — the first genuine cross-tree shared-state need; v4/v6 both considered it and found plain `useState` sufficient) + TanStack Query (from v1). No Redux.**
 4. **`trip_stops` is the single source of truth for the generated plan** once it exists (v2+). No raw Claude response stored in the DB.
 5. **Build in vertical slices — for real this time.** Every version ends with something running in a browser. No version ships backend-only work.
 6. **Opening hours are always in local city time (from v8).** No timezone conversion needed, no timezone fields in the schema.
