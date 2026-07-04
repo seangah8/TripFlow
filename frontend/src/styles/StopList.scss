@@ -6,7 +6,10 @@
   gap: tokens.$space-sm;
   padding: tokens.$space-md;
   overflow-y: auto;
-  height: 100%;
+  // Fills the remaining space below .trip-page__back in the side panel's
+  // flex column, rather than assuming it owns the full column height.
+  flex: 1;
+  min-height: 0;
 
   // Firefox
   scrollbar-width: thin;

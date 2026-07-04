@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 import { DayTimeline } from '../components/DayTimeline';
 import { PlacesMap } from '../components/PlacesMap';
 import { StopList } from '../components/StopList';
@@ -53,12 +53,11 @@ export function TripPage(): JSX.Element {
 
   return (
     <div className="trip-page">
-      <header className="trip-page__header">
-        <Link to={`/vacations/${vacationId}`}>← Back to vacation</Link>
-        <h1>{trip.city}</h1>
-      </header>
       <div className="trip-page__content">
         <div className="trip-page__side-panel">
+          <Link to={`/vacations/${vacationId}`} className="trip-page__back" aria-label="Back to vacation">
+            <ArrowLeft size={20} />
+          </Link>
           <StopList stops={currentDayStops} selectedStopId={selectedStopId} onSelectStop={setSelectedStopId} />
         </div>
         <main className="trip-page__map">

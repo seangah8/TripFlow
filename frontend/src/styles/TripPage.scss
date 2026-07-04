@@ -6,13 +6,6 @@
   height: 100%;
 }
 
-.trip-page__header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-}
-
 .trip-page__error {
   color: crimson;
 }
@@ -42,14 +35,35 @@
 }
 
 .trip-page__side-panel {
+  display: flex;
+  flex-direction: column;
   flex: 0 0 320px;
-  border-right: 1px solid #ddd;
   min-height: 0;
+}
+
+// Plain icon button — replaces the old text header entirely. Same shape
+// language as the day picker/maps-export overlays (rounded, shadow, primary
+// accent) but ghost-styled since it's a secondary, not primary, action.
+.trip-page__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: tokens.$space-md tokens.$space-md tokens.$space-md;
+  border-radius: 50%;
+  color: tokens.$color-primary;
+  background: tokens.$color-bg;
+  box-shadow: tokens.$shadow-sm;
 }
 
 .trip-page__map {
   position: relative;
   flex: 1;
+  margin: tokens.$space-lg;
+  border-radius: tokens.$radius-md;
+  overflow: hidden;
 }
 
 .trip-page__status {

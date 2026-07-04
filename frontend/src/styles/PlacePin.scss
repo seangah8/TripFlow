@@ -1,24 +1,26 @@
+@use './tokens';
+
 .place-pin {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
   cursor: pointer;
 }
 
 .place-pin__shape {
   position: absolute;
   top: 0;
-  left: 4px;
-  width: 28px;
-  height: 28px;
+  left: 6px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: white;
-  border: 2.5px solid #6b7280;
+  background: tokens.$color-bg;
+  border: 3px solid tokens.$color-text-muted;
   border-radius: 50% 50% 50% 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   transform: rotate(-45deg);
 }
 
@@ -37,6 +39,6 @@
 }
 
 .place-pin--selected .place-pin__shape {
-  border-color: #2563eb;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.5);
+  border-color: tokens.$color-primary;
+  box-shadow: 0 4px 14px rgba(53, 170, 230, 0.65);
 }
