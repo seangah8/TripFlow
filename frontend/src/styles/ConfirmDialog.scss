@@ -1,0 +1,12 @@
+@use './tokens';
+
+.confirm-dialog p {
+  color: tokens.$color-text-muted;
+}
+
+// Higher specificity than wizard.scss's `.wizard-step__actions button:last-child`
+// (which fills the last action button with the primary color) — destructive
+// actions get red instead, regardless of stylesheet load order.
+.confirm-dialog .wizard-step__actions button.confirm-dialog__danger {
+  background: crimson;
+}

@@ -20,5 +20,11 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     throw new Error(body?.error ?? 'Request failed');
   }
 
+  // DELETE endpoints respond 204 No Content — .json() would throw on the empty
+  // body, so there's nothing to parse for those callers (T is void there).
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }

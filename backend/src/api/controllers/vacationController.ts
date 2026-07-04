@@ -4,6 +4,7 @@ import {
   addTripToVacation,
   listVacationsByOwner,
   getVacationById,
+  deleteVacation,
   TripDateConflictError,
 } from '../services/vacationService';
 import { InvalidTripDateRangeError } from '../services/tripService';
@@ -57,6 +58,25 @@ export async function getVacationHandler(req: Request, res: Response): Promise<v
   } catch (error) {
     console.error('Failed to load vacation', error);
     res.status(500).json({ error: 'Failed to load vacation' });
+  }
+}
+
+export async function deleteVacationHandler(req: Request, res: Response): Promise<void> {
+  if (!UUID_PATTERN.test(req.params.id)) {
+    res.status(404).json({ error: 'Vacation not found' });
+    return;
+  }
+
+  try {
+    const deleted = await deleteVacation(req.params.id, req.userId);
+    if (!deleted) {
+      res.status(404).json({ error: 'Vacation not found' });
+      return;
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Failed to delete vacation', error);
+    res.status(500).json({ error: 'Failed to delete vacation' });
   }
 }
 

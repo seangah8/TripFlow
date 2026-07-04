@@ -26,3 +26,7 @@ export function addTripToVacation(vacationId: string, input: GenerateTripInput):
     body: JSON.stringify(input),
   });
 }
+
+export function deleteVacation(vacationId: string): Promise<void> {
+  return apiFetch<void>(`/api/vacations/${vacationId}`, { method: 'DELETE' });
+}

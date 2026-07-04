@@ -1,15 +1,24 @@
+@use './tokens';
+
+// Kept as plain hardcoded values here (not yet tokenized) — Step 8 is this
+// card's dedicated design pass; only the new delete affordance below uses
+// tokens, added as a scoped exception in this session.
 .vacation-card {
-  display: block;
-  padding: 1rem 1.25rem;
+  position: relative;
   border: 1px solid #ccc;
   border-radius: 8px;
-  text-decoration: none;
-  color: inherit;
   transition: border-color 0.15s;
 
   &:hover {
     border-color: #2563eb;
   }
+}
+
+.vacation-card__link {
+  display: block;
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  color: inherit;
 }
 
 .vacation-card__name {
@@ -19,4 +28,26 @@
 .vacation-card__trip-count {
   margin: 0;
   color: #666;
+}
+
+// Sits on top of the card, outside the <Link>, so it never triggers navigation.
+.vacation-card__delete {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 50%;
+  background: tokens.$color-bg;
+  color: tokens.$color-text-muted;
+  box-shadow: tokens.$shadow-sm;
+  cursor: pointer;
+
+  &:hover {
+    color: crimson;
+  }
 }

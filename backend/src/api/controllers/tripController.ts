@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { generateTrip, getTripById, listTripsByOwner, InvalidTripDateRangeError } from '../services/tripService';
+import { generateTrip, getTripById, listTripsByOwner, deleteTrip, InvalidTripDateRangeError } from '../services/tripService';
 import type { TripGenerateRequest, TripPreferences } from '../../types/trip';
 
 const VALID_VIBES = new Set<TripPreferences['vibe']>(['relaxed', 'moderate', 'packed']);
@@ -118,5 +118,24 @@ export async function listTripsHandler(req: Request, res: Response): Promise<voi
   } catch (error) {
     console.error('Failed to list trips', error);
     res.status(500).json({ error: 'Failed to list trips' });
+  }
+}
+
+export async function deleteTripHandler(req: Request, res: Response): Promise<void> {
+  if (!UUID_PATTERN.test(req.params.id)) {
+    res.status(404).json({ error: 'Trip not found' });
+    return;
+  }
+
+  try {
+    const deleted = await deleteTrip(req.params.id, req.userId);
+    if (!deleted) {
+      res.status(404).json({ error: 'Trip not found' });
+      return;
+    }
+    res.status(204).send();
+  } catch (error) {
+    console.error('Failed to delete trip', error);
+    res.status(500).json({ error: 'Failed to delete trip' });
   }
 }

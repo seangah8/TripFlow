@@ -1,16 +1,11 @@
 @use './tokens';
 
 .trip-card {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem;
+  position: relative;
   border: 1px solid tokens.$color-border;
   border-radius: tokens.$radius-md;
   background: tokens.$color-bg;
   box-shadow: tokens.$shadow-sm;
-  text-decoration: none;
-  color: inherit;
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -18,6 +13,37 @@
   &:hover {
     border-color: tokens.$color-primary;
     box-shadow: tokens.$shadow-md;
+  }
+}
+
+.trip-card__link {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+// Sits on top of the card, outside the <Link>, so it never triggers navigation.
+.trip-card__delete {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 50%;
+  background: tokens.$color-bg;
+  color: tokens.$color-text-muted;
+  box-shadow: tokens.$shadow-sm;
+  cursor: pointer;
+
+  &:hover {
+    color: crimson;
   }
 }
 

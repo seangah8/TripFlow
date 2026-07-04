@@ -58,6 +58,12 @@ export async function addTripToVacation(
   return generateTrip(city, startDate, endDate, preferences, ownerId, vacationId);
 }
 
+export async function deleteVacation(vacationId: string, ownerId: string): Promise<boolean> {
+  const vacationRepository = AppDataSource.getRepository(Vacation);
+  const result = await vacationRepository.delete({ id: vacationId, ownerId });
+  return (result.affected ?? 0) > 0;
+}
+
 // Dashboard card list — one query for vacations, one grouped query for all their
 // trips (city/dates only, no place/stop join), avoiding both an eager relation
 // and an N+1 per-vacation trip query.

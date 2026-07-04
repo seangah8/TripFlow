@@ -303,6 +303,12 @@ export async function getFirstStopPhotoByTripId(tripIds: string[]): Promise<Map<
   return photoByTripId;
 }
 
+export async function deleteTrip(tripId: string, ownerId: string): Promise<boolean> {
+  const tripRepository = AppDataSource.getRepository(Trip);
+  const result = await tripRepository.delete({ id: tripId, ownerId });
+  return (result.affected ?? 0) > 0;
+}
+
 // Dashboard card list — no full trip_stops join (only the first-stop photo
 // lookup above); cards only ever show city/dates/photo (see TripSummaryResponse).
 export async function listTripsByOwner(ownerId: string): Promise<TripSummaryResponse[]> {

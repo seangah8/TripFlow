@@ -26,3 +26,7 @@ export function fetchTrip(tripId: string): Promise<Trip> {
 export function fetchTrips(): Promise<TripSummary[]> {
   return apiFetch<TripSummary[]>('/api/trips');
 }
+
+export function deleteTrip(tripId: string): Promise<void> {
+  return apiFetch<void>(`/api/trips/${tripId}`, { method: 'DELETE' });
+}
