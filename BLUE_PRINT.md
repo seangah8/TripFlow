@@ -213,9 +213,15 @@ the chosen interests, not a generic "tourist attractions" search. Generating nav
 
 ### v9 — Design & polish
 
-**User-facing outcome:** The whole app gets a real visual pass — consistent styling, a look that reads as a finished product rather than a working prototype, and a layout that holds up on a phone screen, not just a desktop browser window. No new features; every screen built in v0–v8 gets revisited for polish and responsiveness.
+**User-facing outcome:** The whole app got a real visual pass — a shared SCSS design-token file, a persistent app header/logo, a redesigned wizard/dashboard/vacation-hub/trip page, an animated loading cover for trip generation, and a mobile-responsive layout across every screen built in v0–v8.
 
-**Scope (to be detailed in this session's own `/plan`):** exact breakpoints, whether a shared design-token/variable file gets introduced (none exists yet — every `.scss` file currently hardcodes its own hex values), and which screens need the most work are decisions for that session's planning step, not locked here.
+**Scope decisions locked during the session:**
+- Design tokens: plain SCSS variables (`frontend/src/styles/_tokens.scss`), not CSS custom properties — compile-time only, matches the app's single-theme scope (no dark mode).
+- Breakpoint: one breakpoint, `<640px` (mobile) / `≥640px` (desktop) — no separate tablet tier.
+- Icon library: `lucide-react` added (see Section 6).
+- `StopDetailPanel` was deleted — its content merged into `StopList` as a single inline-expanding accordion (clicking a stop expands it in place), replacing the page-level list⟷detail toggle v6 introduced.
+- One scoped exception to "no new features," explicitly flagged to and approved by the user mid-session: `DELETE /api/trips/:id` and `DELETE /api/vacations/:id` were added (see Section 5), plus a confirm-dialog delete affordance on trip/vacation cards.
+- `TripSummaryResponse` gained a `photoName: string | null` field (each trip's first stop's photo, via a new batch lookup) so trip/vacation cards can show a real photo instead of a generic icon.
 
 ---
 
@@ -309,12 +315,15 @@ Response (stabilizes by v6):
 
 ### `GET /api/trips/:id` *(built at v4, pulled forward from v7 — no auth/ownership check until v7)*
 
-### `GET /api/trips` *(list, built at v7 — data has existed since v2, but scoping to a logged-in user needs auth)*
+### `GET /api/trips` *(list, built at v7 — data has existed since v2, but scoping to a logged-in user needs auth)*. Response items (`TripSummaryResponse`, shared with the vacation list/detail responses below) gained a `photoName: string | null` field in v9 — each trip's first stop's photo, so dashboard/vacation-hub cards can show a real image instead of a generic icon.
 
 ### `POST /api/auth/register` / `POST /api/auth/login` *(v7)*
 
 ### `POST /api/vacations`, `POST /api/vacations/:id/trips`, `GET /api/vacations`, `GET /api/vacations/:id` *(v8)*
 The trip-adding endpoint takes the exact same body as `POST /api/trips/generate` — it's the same pipeline, just stamping the result with a `vacationId`.
+
+### `DELETE /api/trips/:id`, `DELETE /api/vacations/:id` *(v9 — scoped exception to "no new features," approved mid-session for a card delete affordance)*
+Ownership-scoped (404 if not found/not owned by the requester), 204 on success. Deleting a vacation cascades to its trips and their `trip_stops` at the DB level (existing `onDelete: 'CASCADE'` relations) — no explicit application-level cleanup needed.
 
 ---
 
@@ -338,6 +347,9 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 ### Map
 **Google Maps JavaScript SDK** (confirmed) — consistent with the Google Places data already driving the app. Requires the Maps JavaScript API enabled on the same Google Cloud project as the Places key; usage-billed beyond Google's free monthly credit. From v6, custom photo pins use `AdvancedMarker`, which additionally requires a Google Maps **Map ID** (`VITE_GOOGLE_MAPS_MAP_ID`) — a separate Cloud Console setup step (Maps Platform → Map Management), distinct from the API key.
 
+### Icons
+**lucide-react** (confirmed, v9) — the icon library for the whole app (header, wizard, buttons, spinners), replacing hand-rolled inline SVGs going forward (e.g. `NoPhotoIcon` swapped from a hand-drawn SVG to lucide's `ImageOff`).
+
 ### Key components by version
 | Component | Introduced |
 |---|---|
@@ -346,6 +358,7 @@ The trip-adding endpoint takes the exact same body as `POST /api/trips/generate`
 | Home page + "Add Trip" modal wizard, real routing (`/`, `/trips/:tripId`) | v4 |
 | Stop list ⟷ Stop detail panel (single toggling column) + custom photo map pins | v6 |
 | Login/register forms, Trips dashboard | v7 |
+| Persistent app Header + Logo; shared LoadingOverlay, ConfirmDialog, BackButton components; stop list merged into a single inline-expanding accordion (StopDetailPanel removed) | v9 |
 
 ---
 
