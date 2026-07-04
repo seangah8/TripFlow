@@ -15,4 +15,10 @@
 - Native selects were kept per your answer — simplest, fully accessible/keyboard-friendly, and the "just restyle" scope matched what the app needed here (the previous selects were completely unstyled).
 - Styling the wizard's buttons was necessary baseline polish for "the wizard" as a whole (they were unstyled browser defaults before this step), done via CSS selectors rather than touching `DestinationStep`/`PreferencesStep`/`ConfirmStep`'s markup.
 
+## Follow-up tweaks (post-checkpoint, in browser)
+- City text input and both `react-datepicker` date inputs now share a new `.wizard-step__input` style (border/radius/focus ring), matching the select fields from the initial pass.
+- The `react-datepicker` calendar popup itself (portalled to `#datepicker-portal`) got global overrides of its own class names — bordered/rounded container, tinted header, primary-color hover/selected days, default arrow triangle removed.
+- Interest chips gained a `lucide-react` icon per interest (Landmark/UtensilsCrossed/Trees/Martini/ShoppingBag) — icons use `currentColor` so they inherit the chip's selected-state primary color automatically, no separate icon color rule needed.
+- Clarified and confirmed with the user: native `<select>`'s open dropdown *list* can't be restyled cross-browser (Chrome/Edge only allow per-`<option>` background/text color, nothing else) — kept native selects as decided in Step 6, accepting the OS-rendered list.
+
 Suggested commit title: `feat: add wizard step indicator and apply design tokens to modal/fields/buttons`

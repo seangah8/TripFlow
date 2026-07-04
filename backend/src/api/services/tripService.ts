@@ -1,4 +1,4 @@
-import type { QueryDeepPartialEntity } from 'typeorm';
+import { In, type QueryDeepPartialEntity } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
@@ -278,8 +278,33 @@ export async function getTripById(tripId: string, ownerId: string): Promise<Trip
   };
 }
 
-// Dashboard card list — deliberately no trip_stops join; cards only ever
-// show city/dates (see TripSummaryResponse).
+// Card lists (dashboard, vacation hub) show the trip's first stop's photo —
+// "first" meaning earliest by (date, order), not insertion order. One query
+// per batch of trip ids, reduced in JS rather than a per-trip query, since
+// there's no cheap "first row per group" in TypeORM's query builder API.
+export async function getFirstStopPhotoByTripId(tripIds: string[]): Promise<Map<string, string | null>> {
+  const photoByTripId = new Map<string, string | null>();
+  if (tripIds.length === 0) {
+    return photoByTripId;
+  }
+
+  const tripStopRepository = AppDataSource.getRepository(TripStop);
+  const stops = await tripStopRepository.find({
+    where: { tripId: In(tripIds) },
+    relations: { place: true },
+    order: { date: 'ASC', order: 'ASC' },
+  });
+
+  for (const stop of stops) {
+    if (!photoByTripId.has(stop.tripId)) {
+      photoByTripId.set(stop.tripId, stop.place.photoName);
+    }
+  }
+  return photoByTripId;
+}
+
+// Dashboard card list — no full trip_stops join (only the first-stop photo
+// lookup above); cards only ever show city/dates/photo (see TripSummaryResponse).
 export async function listTripsByOwner(ownerId: string): Promise<TripSummaryResponse[]> {
   const tripRepository = AppDataSource.getRepository(Trip);
   const trips = await tripRepository.find({
@@ -287,10 +312,13 @@ export async function listTripsByOwner(ownerId: string): Promise<TripSummaryResp
     order: { createdAt: 'DESC' },
   });
 
+  const photoByTripId = await getFirstStopPhotoByTripId(trips.map((trip) => trip.id));
+
   return trips.map((trip) => ({
     tripId: trip.id,
     city: trip.city,
     startDate: trip.startDate,
     endDate: trip.endDate,
+    photoName: photoByTripId.get(trip.id) ?? null,
   }));
 }

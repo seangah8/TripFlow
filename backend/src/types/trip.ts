@@ -41,11 +41,14 @@ export interface TripGenerateResponse {
   days: TripDayResponse[];
 }
 
-// Lightweight response shape for GET /api/trips (the dashboard's card list) —
-// deliberately excludes stops/places (no trip_stops join required).
+// Lightweight response shape for GET /api/trips (the dashboard's card list) and
+// the vacation hub's nested trip cards — excludes full stops/places, but does
+// include the first stop's photo (v9 card design) via a separate lookup, not a
+// full trip_stops join.
 export interface TripSummaryResponse {
   tripId: string;
   city: string;
   startDate: string;
   endDate: string;
+  photoName: string | null;
 }

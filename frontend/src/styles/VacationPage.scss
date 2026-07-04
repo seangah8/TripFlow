@@ -1,29 +1,26 @@
+@use './tokens';
+
 .vacation-page {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 2rem 2.5rem;
+}
+
+.vacation-page__header {
+  display: flex;
+  align-items: center;
+  gap: tokens.$space-md;
 }
 
 .vacation-page__title {
   margin: 0;
-}
-
-.vacation-page__add-city {
-  align-self: flex-start;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  border: none;
-  border-radius: 8px;
-  background: #2563eb;
-  color: white;
-  cursor: pointer;
+  font-size: 1.75rem;
+  font-weight: 700;
 }
 
 .vacation-page__status {
-  color: #666;
+  color: tokens.$color-text-muted;
 }
 
 .vacation-page__error {
@@ -32,6 +29,33 @@
 
 .vacation-page__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  // Fixed 4-per-row, per user request — responsive collapsing for narrower
+  // viewports is handled separately in Step 13's mobile pass.
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
+}
+
+// Sits as the last tile in the grid, alongside the trip cards — reads as
+// "add the next one here" rather than displacing the existing trips.
+.vacation-page__add-city {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: tokens.$space-sm;
+  min-height: 100px;
+  padding: 1.25rem;
+  // Bright near-white so the dashed outline reads clearly against the
+  // page's blue-tinted background, instead of the low-contrast gray token.
+  border: 2px dashed rgba(170, 170, 170, 0.9);
+  border-radius: tokens.$radius-md;
+  background: transparent;
+  color: tokens.$color-text-muted;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: tokens.$color-primary;
+    color: tokens.$color-primary;
+  }
 }

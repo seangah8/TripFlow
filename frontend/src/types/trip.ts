@@ -33,11 +33,13 @@ export interface Trip {
   days: TripDay[];
 }
 
-// Mirrors the backend's TripSummaryResponse — the lightweight GET /api/trips
-// (dashboard card list) shape, no stops/places.
+// Mirrors the backend's TripSummaryResponse — the lightweight GET /api/trips /
+// vacation-hub card shape: no full stops/places, but does include the first
+// stop's photo (looked up separately, not a full trip_stops join).
 export interface TripSummary {
   tripId: string;
   city: string;
   startDate: string;
   endDate: string;
+  photoName: string | null;
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import { BackButton } from '../components/BackButton';
 import { TripCard } from '../components/TripCard';
 import { TripWizardModal } from '../components/wizard/TripWizardModal';
 import { useVacation } from '../hooks/useVacation';
@@ -27,22 +29,20 @@ export function VacationPage(): JSX.Element {
 
   return (
     <div className="vacation-page">
-      <h1 className="vacation-page__title">{getVacationLabel(vacation)}</h1>
+      <div className="vacation-page__header">
+        <BackButton to="/" label="Back to dashboard" />
+        <h1 className="vacation-page__title">{getVacationLabel(vacation)}</h1>
+      </div>
 
-      <button type="button" className="vacation-page__add-city" onClick={() => setIsWizardOpen(true)}>
-        Add a city
-      </button>
-
-      {vacation.trips.length === 0 && (
-        <p className="vacation-page__status">No cities yet — add your first one.</p>
-      )}
-      {vacation.trips.length > 0 && (
-        <div className="vacation-page__grid">
-          {vacation.trips.map((trip) => (
-            <TripCard key={trip.tripId} trip={trip} vacationId={vacation.vacationId} />
-          ))}
-        </div>
-      )}
+      <div className="vacation-page__grid">
+        {vacation.trips.map((trip) => (
+          <TripCard key={trip.tripId} trip={trip} vacationId={vacation.vacationId} />
+        ))}
+        <button type="button" className="vacation-page__add-city" onClick={() => setIsWizardOpen(true)}>
+          <Plus size={20} />
+          Add a city
+        </button>
+      </div>
 
       {isWizardOpen && (
         <TripWizardModal

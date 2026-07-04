@@ -2,7 +2,7 @@ import { In } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Vacation } from '../../entities/Vacation';
 import { Trip } from '../../entities/Trip';
-import { generateTrip } from './tripService';
+import { generateTrip, getFirstStopPhotoByTripId } from './tripService';
 import { assertStartDateNotInPast } from '../controllers/tripController';
 import type { TripGenerateResponse, TripPreferences, TripSummaryResponse } from '../../types/trip';
 import type { VacationResponse } from '../../types/vacation';
@@ -74,6 +74,8 @@ export async function listVacationsByOwner(ownerId: string): Promise<VacationRes
     order: { createdAt: 'ASC' },
   });
 
+  const photoByTripId = await getFirstStopPhotoByTripId(trips.map((trip) => trip.id));
+
   const tripsByVacationId = new Map<string, TripSummaryResponse[]>(vacations.map((vacation) => [vacation.id, []]));
   for (const trip of trips) {
     tripsByVacationId.get(trip.vacationId!)!.push({
@@ -81,6 +83,7 @@ export async function listVacationsByOwner(ownerId: string): Promise<VacationRes
       city: trip.city,
       startDate: trip.startDate,
       endDate: trip.endDate,
+      photoName: photoByTripId.get(trip.id) ?? null,
     });
   }
 
@@ -103,11 +106,18 @@ export async function getVacationById(vacationId: string, ownerId: string): Prom
 
   const tripRepository = AppDataSource.getRepository(Trip);
   const trips = await tripRepository.find({ where: { vacationId }, order: { createdAt: 'ASC' } });
+  const photoByTripId = await getFirstStopPhotoByTripId(trips.map((trip) => trip.id));
 
   return {
     vacationId: vacation.id,
     name: vacation.name,
     createdAt: vacation.createdAt.toISOString(),
-    trips: trips.map((trip) => ({ tripId: trip.id, city: trip.city, startDate: trip.startDate, endDate: trip.endDate })),
+    trips: trips.map((trip) => ({
+      tripId: trip.id,
+      city: trip.city,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      photoName: photoByTripId.get(trip.id) ?? null,
+    })),
   };
 }
