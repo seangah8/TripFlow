@@ -11,7 +11,7 @@ import type { TripStop } from '../types/trip';
 import '../styles/TripPage.scss';
 
 export function TripPage(): JSX.Element {
-  const { tripId } = useParams<{ tripId: string }>();
+  const { vacationId, tripId } = useParams<{ vacationId: string; tripId: string }>();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const { data: trip, isLoading, isError, error } = useTrip(tripId);
@@ -51,7 +51,7 @@ export function TripPage(): JSX.Element {
     return (
       <div className="trip-page__status">
         <p className="trip-page__error">{error?.message ?? 'Trip not found.'}</p>
-        <Link to="/">Back home</Link>
+        <Link to={`/vacations/${vacationId}`}>← Back to vacation</Link>
       </div>
     );
   }
@@ -59,7 +59,7 @@ export function TripPage(): JSX.Element {
   return (
     <div className="trip-page">
       <header className="trip-page__header">
-        <Link to="/">TripFlow</Link>
+        <Link to={`/vacations/${vacationId}`}>← Back to vacation</Link>
         <h1>{trip.city}</h1>
         {currentDayStops.length > 0 && (
           <a
