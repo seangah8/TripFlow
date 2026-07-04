@@ -48,7 +48,7 @@
   padding: 1.25rem;
   // Bright near-white so the dashed outline reads clearly against the
   // page's blue-tinted background, instead of the low-contrast gray token.
-  border: 2px dashed rgba(170, 170, 170, 0.9);
+  border: 2px dashed rgba(255, 255, 255, 0.9);
   border-radius: tokens.$radius-md;
   background: transparent;
   color: tokens.$color-text-muted;

@@ -37,9 +37,10 @@ export function NewVacationModal({ onClose }: NewVacationModalProps): JSX.Elemen
 
           <input
             type="text"
+            className="wizard-step__input"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Name this vacation (optional)"
+            placeholder="Name this vacation"
           />
 
           {error && <p className="wizard-step__error">{error.message}</p>}
