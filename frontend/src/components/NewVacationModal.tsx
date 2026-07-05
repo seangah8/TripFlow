@@ -8,6 +8,9 @@ interface NewVacationModalProps {
   onClose: () => void;
 }
 
+// Frontend-only guardrail — no backend validation for this.
+const MAX_VACATION_NAME_LENGTH = 30;
+
 // A small standalone prompt, not the 3-step trip wizard — a vacation has nothing
 // to configure beyond an optional name. Reuses the wizard's modal SCSS.
 export function NewVacationModal({ onClose }: NewVacationModalProps): JSX.Element {
@@ -40,6 +43,7 @@ export function NewVacationModal({ onClose }: NewVacationModalProps): JSX.Elemen
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Name this vacation"
+            maxLength={MAX_VACATION_NAME_LENGTH}
           />
 
           {error && <p className="wizard-step__error">{error.message}</p>}

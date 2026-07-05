@@ -23,6 +23,9 @@ interface DestinationStepProps {
 // backend re-validates the same rule at the request boundary regardless.
 const MAX_TRIP_DAYS = 14;
 
+// Frontend-only guardrail — no backend validation for this.
+const MAX_CITY_NAME_LENGTH = 30;
+
 // react-datepicker works with Date objects; the rest of the app works in plain
 // YYYY-MM-DD strings — these helpers keep that conversion local to this file.
 function parseDateString(value: string): Date | null {
@@ -100,6 +103,7 @@ export function DestinationStep({
         value={city}
         onChange={(event) => onCityChange(event.target.value)}
         placeholder="Enter a city"
+        maxLength={MAX_CITY_NAME_LENGTH}
       />
       <DatePicker
         selected={parseDateString(startDate)}
