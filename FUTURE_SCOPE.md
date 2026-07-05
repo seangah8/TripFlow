@@ -44,9 +44,9 @@ at once, not just nearest-neighbor.
 - Within each day, order stops using position + hours constraints, with category spacing so
   similar stop types (e.g. multiple meals) don't cluster back-to-back.
 
-## v12 — Multi-user / shared trips
+## v12 — Multi-user / shared vacations
 
-Requires real-time sync or conflict resolution across multiple editors on the same trip; single
+Requires real-time sync or conflict resolution across multiple editors on the same vacation; single
 owner (v7) keeps the committed scope simple.
 
 ## v13 — Editable / draggable plan
