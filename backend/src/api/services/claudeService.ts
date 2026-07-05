@@ -7,9 +7,18 @@ import type { ClaudeCuratedStop, ClaudePlaceSummary, CurationOutput, CuratedStop
 // Google already returned, not open-ended reasoning, so Sonnet 5 is the right tier.
 const CLAUDE_MODEL = 'claude-sonnet-5';
 
-// Each kept place costs a ~300-char reasoning string plus an estimatedMinutes value,
-// not just a bare id.
-const MAX_OUTPUT_TOKENS = 8192;
+// Token usage constants control
+const BASE_OUTPUT_TOKENS = 1024;
+const TOKENS_PER_PLACE = 130;
+const PLACES_PER_DAY_ESTIMATE = 5;
+const MIN_PLACES_ESTIMATE = 20;
+const MAX_OUTPUT_TOKENS_CAP = 32000;
+
+// Pure and exported for unit testing — same pattern as placeService.ts's perQueryTarget.
+export function computeMaxOutputTokens(totalDays: number): number {
+  const estimatedPlaces = Math.max(totalDays * PLACES_PER_DAY_ESTIMATE, MIN_PLACES_ESTIMATE);
+  return Math.min(BASE_OUTPUT_TOKENS + estimatedPlaces * TOKENS_PER_PLACE, MAX_OUTPUT_TOKENS_CAP);
+}
 
 // Bounds for estimatedMinutes/reasoning — enforced entirely in code (see extractSelectedPlaces
 // below) since Anthropic's structured-output schema rejects minimum/maximum/maxLength outright.
@@ -172,7 +181,7 @@ export async function curatePlaces(
 ): Promise<CuratedStop[]> {
   const response = await client.messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: MAX_OUTPUT_TOKENS,
+    max_tokens: computeMaxOutputTokens(totalDays),
     // Sonnet 5 runs adaptive thinking by default when omitted — disabled explicitly to
     // keep latency/cost predictable for this synchronous request.
     thinking: { type: 'disabled' },
