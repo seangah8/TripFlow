@@ -61,17 +61,21 @@ function fakeClient(create: jest.Mock): Anthropic {
 }
 
 describe('buildUserPrompt', () => {
+  // The trip length line and the raw preferences object should both land in the prompt text.
   it('includes the trip length and serialized preferences', () => {
     const prompt = buildUserPrompt([], PREFERENCES, 5);
     expect(prompt).toContain('Trip length: 5 days');
     expect(prompt).toContain(JSON.stringify(PREFERENCES));
   });
 
+  // Grammar edge case: "1 day", not "1 days".
   it('uses singular "day" for a 1-day trip', () => {
     const prompt = buildUserPrompt([], PREFERENCES, 1);
     expect(prompt).toContain('Trip length: 1 day');
   });
 
+  // Only curation-relevant fields (id/name/category/rating) should reach Claude —
+  // photoName/openingHours would just burn tokens.
   it('includes only the fields relevant to a curation decision, per place', () => {
     const place = makePlace('place-1', { name: 'Louvre', category: 'Museum', rating: 4.7, lat: 48.86, lng: 2.34 });
     const prompt = buildUserPrompt([place], PREFERENCES, 3);
@@ -88,6 +92,7 @@ describe('buildUserPrompt', () => {
 });
 
 describe('extractSelectedPlaces', () => {
+  // Happy path: valid JSON matching the schema parses into the expected stop objects.
   it('parses a well-formed structured-output response', () => {
     const message = fakeMessage({
       content: [
@@ -104,11 +109,13 @@ describe('extractSelectedPlaces', () => {
     ]);
   });
 
+  // Claude declining to answer is a normal HTTP 200 — must be caught via stop_reason, not a thrown error.
   it('throws ClaudeCurationError on a refusal', () => {
     const message = fakeMessage({ stop_reason: 'refusal' });
     expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
+  // A truncated response can't be trusted as valid JSON, so it must fail loudly rather than parse partial data.
   it('throws ClaudeCurationError when the response was truncated at max_tokens', () => {
     const message = fakeMessage({ stop_reason: 'max_tokens' });
     expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
@@ -129,6 +136,7 @@ describe('extractSelectedPlaces', () => {
     expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
+  // A single malformed entry shouldn't sink the whole response — only that entry gets dropped.
   it('drops an entry missing a required field instead of throwing', () => {
     const message = fakeMessage({
       content: [
@@ -142,6 +150,8 @@ describe('extractSelectedPlaces', () => {
     expect(extractSelectedPlaces(message).map((s) => s.googlePlaceId)).toEqual(['b']);
   });
 
+  // The request schema can't enforce numeric bounds, so out-of-range/off-step
+  // values must be clamped and snapped in code instead.
   it('clamps an out-of-range estimatedMinutes into [15, 240] and rounds to the nearest 15', () => {
     const message = fakeMessage({
       content: [
@@ -162,6 +172,7 @@ describe('extractSelectedPlaces', () => {
     expect(result.find((s) => s.googlePlaceId === 'off-step')!.estimatedMinutes).toBe(45);
   });
 
+  // MAX_REASONING_LENGTH is enforced in code, not the schema, so an oversized string must be cut off, not rejected.
   it('truncates a reasoning string longer than 300 characters', () => {
     const message = fakeMessage({
       content: [
@@ -177,6 +188,7 @@ describe('extractSelectedPlaces', () => {
 });
 
 describe('filterToKnownStops', () => {
+  // Basic join: a selected id should carry its estimatedMinutes/reasoning onto the matching place.
   it('keeps only places whose googlePlaceId was selected, attaching estimatedMinutes/reasoning', () => {
     const places = [makePlace('a'), makePlace('b'), makePlace('c')];
     const selections = [makeSelection('a', { estimatedMinutes: 45 }), makeSelection('c', { estimatedMinutes: 90 })];
@@ -186,6 +198,7 @@ describe('filterToKnownStops', () => {
     expect(result.map((s) => s.reasoning)).toEqual([selections[0]!.reasoning, selections[1]!.reasoning]);
   });
 
+  // The core anti-hallucination guard: an id Claude invented simply matches nothing and vanishes.
   it('silently drops a selected id that does not exist in the input — the hallucination guard', () => {
     const places = [makePlace('a'), makePlace('b')];
     const selections = [makeSelection('a'), makeSelection('made-up-id')];
@@ -197,12 +210,14 @@ describe('filterToKnownStops', () => {
     expect(filterToKnownStops([], places)).toEqual([]);
   });
 
+  // Output order should follow the candidate list, not whatever order Claude selected ids in.
   it('preserves the input places order, not the selected-ids order', () => {
     const places = [makePlace('a'), makePlace('b'), makePlace('c')];
     const selections = [makeSelection('c'), makeSelection('a')];
     expect(filterToKnownStops(selections, places).map((s) => s.place.googlePlaceId)).toEqual(['a', 'c']);
   });
 
+  // Map-keyed-by-id lookup means a duplicate selection can't produce a duplicate stop.
   it('does not duplicate a place even if its id is selected more than once', () => {
     const places = [makePlace('a'), makePlace('b')];
     const selections = [makeSelection('a', { estimatedMinutes: 30 }), makeSelection('a', { estimatedMinutes: 60 })];
@@ -211,6 +226,7 @@ describe('filterToKnownStops', () => {
 });
 
 describe('curatePlaces', () => {
+  // The request sent to Anthropic should use the locked model/schema and embed the trip-length prompt line.
   it('calls the client with the expected model, output schema, and prompt content', async () => {
     const create = jest.fn().mockResolvedValue(fakeMessage());
     const places = [makePlace('a')];
@@ -226,6 +242,7 @@ describe('curatePlaces', () => {
     expect(requestArg.messages[0].content).toContain('Trip length: 4 days');
   });
 
+  // End-to-end through curatePlaces: real ids survive with their details, a fabricated one doesn't.
   it('returns the curated subset with estimatedMinutes/reasoning, dropping any hallucinated id', async () => {
     const places = [makePlace('a'), makePlace('b'), makePlace('c')];
     const create = jest.fn().mockResolvedValue(
@@ -257,6 +274,7 @@ describe('curatePlaces', () => {
     );
   });
 
+  // A raw SDK/network failure (not a curation-shaped error) shouldn't be wrapped or swallowed.
   it('propagates a network/SDK-level error unchanged', async () => {
     const create = jest.fn().mockRejectedValue(new Error('network down'));
     await expect(curatePlaces([makePlace('a')], PREFERENCES, 4, fakeClient(create))).rejects.toThrow(

@@ -1,10 +1,12 @@
 import { buildSearchQueries, perQueryTarget } from '../api/services/placeService';
 
 describe('buildSearchQueries', () => {
+  // With no interests selected, the always-on baseline is the only query run.
   it('returns just the baseline query when no interests are selected', () => {
     expect(buildSearchQueries('Paris', [])).toEqual(['tourist attractions in Paris']);
   });
 
+  // Baseline must always lead so it reads naturally in logs/tests, followed by each interest's phrase.
   it('puts the baseline query first, followed by one phrase per selected interest', () => {
     const queries = buildSearchQueries('Paris', ['food', 'museums']);
     expect(queries).toEqual([
@@ -39,6 +41,7 @@ describe('perQueryTarget', () => {
     expect(perQueryTarget(20, 1)).toBe(20);
   });
 
+  // Rounds up (ceil), not down, since under-covering the combined target is worse than a slight overshoot.
   it('rounds up so the combined target is never under-covered', () => {
     expect(perQueryTarget(20, 3)).toBe(7);
   });

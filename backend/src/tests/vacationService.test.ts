@@ -13,6 +13,7 @@ describe('dateRangesOverlap', () => {
     expect(dateRangesOverlap('2026-09-01', '2026-09-30', '2026-09-10', '2026-09-11')).toBe(true);
   });
 
+  // Sharing only a boundary date with no actual day overlap should not count as overlapping.
   it('returns false for adjacent, non-overlapping ranges', () => {
     expect(dateRangesOverlap('2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13')).toBe(false);
   });

@@ -21,6 +21,7 @@ function idsOf(places: Place[]): string[] {
 }
 
 describe('clusterPlacesByDay', () => {
+  // Three well-separated, equally-sized bands of places should each stay together in one day.
   it('splits tight geographic bands evenly, each band landing in a single day', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03'];
     const bandA = [-50.1, -50.05, -50.0, -49.95, -49.9].map((lng, i) => makePlace(`a${i}`, 0, lng));
@@ -45,6 +46,8 @@ describe('clusterPlacesByDay', () => {
     }
   });
 
+  // Per BLUE_PRINT.md: clustering is deterministic code, not the LLM — same input,
+  // same output, and the caller's array must never be mutated in place.
   it('is deterministic: identical input (and a deep clone of it) always produces identical output', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'];
     const places: Place[] = [
@@ -77,6 +80,8 @@ describe('clusterPlacesByDay', () => {
     expect(JSON.parse(JSON.stringify(places))).toEqual(inputBefore);
   });
 
+  // A day whose own geographic cluster is sparse should get filler places pulled in
+  // from a crowded neighbor rather than being left thin.
   it('rebalances an underpopulated day by pulling filler places from an overloaded neighbor, instead of leaving it empty', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03'];
     // Ratings are distinct and ordered so "lowest-rated member" is unambiguous
@@ -114,6 +119,8 @@ describe('clusterPlacesByDay', () => {
     expect(new Set(idsOf(result.get(days[2]!)!))).toEqual(new Set(['b2', 'b3', 'b4']));
   });
 
+  // A day can hold at most 15 stops; when a cluster overflows that, the lowest-rated
+  // places (nulls treated as worst) are the ones dropped, not kept.
   it('caps an oversized cluster at 15, keeping the highest-rated and treating null rating as 0', () => {
     const days = ['2026-07-01'];
     const rated = Array.from({ length: 17 }, (_, i) => makePlace(`r${i + 1}`, 0, 0, i + 1)); // ratings 1..17
@@ -129,6 +136,8 @@ describe('clusterPlacesByDay', () => {
     expect(survivorIds).toEqual(expectedSurvivors);
   });
 
+  // A single overloaded region plus several small tight bands should still spread
+  // to as-even-as-possible day sizes, with nothing dropped or duplicated.
   it('conserves every place and redistributes to keep day sizes as even as possible', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04'];
     const oversized = Array.from({ length: 18 }, (_, i) => makePlace(`g${i}`, 0, -100 - i * 0.01, i + 1));
@@ -154,6 +163,8 @@ describe('clusterPlacesByDay', () => {
     expect(sizes.slice().sort((a, b) => a - b)).toEqual([7, 7, 8, 8]);
   });
 
+  // After balancing, the final compactness pass should leave no single-place swap
+  // between any two days that would lower their combined distance-from-center.
   it('reaches a local optimum: no swap between any two days would reduce their combined spread from center', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03'];
     // Deliberately uneven raw size (5/4/3), forcing balanceClusters to pull places across
@@ -186,6 +197,7 @@ describe('clusterPlacesByDay', () => {
     }
   });
 
+  // Edge case: more days than places — no day should end up with more than 1 stop.
   it('handles fewer places than days: spreads them one-per-day as far as possible, nothing lost', () => {
     const days = ['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05'];
     const places = [makePlace('p1', 40.7, -74.0), makePlace('p2', 41.9, -87.6)];
@@ -201,6 +213,7 @@ describe('clusterPlacesByDay', () => {
     expect(sizes.every((s) => s <= 1)).toBe(true);
   });
 
+  // Edge case: zero places should still return a fully-keyed map, not throw.
   it('handles an empty places array: every day maps to an empty array, no crash', () => {
     const days = ['2026-07-01', '2026-07-02'];
 
