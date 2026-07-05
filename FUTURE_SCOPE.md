@@ -1,5 +1,9 @@
 # TripFlow — Future Scope
 
+## Deploy the app
+
+Get it live somewhere real — before any of the fixes below.
+
 ## Fixes to do before continuing with the versions
 
 Not deferred roadmap items — gaps in already-shipped versions to clean up before starting the next one.
