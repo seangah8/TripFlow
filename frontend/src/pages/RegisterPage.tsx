@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent, JSX } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useRegister } from '../hooks/useRegister';
 import { Logo } from '../components/Logo';
 import '../styles/RegisterPage.scss';
@@ -9,7 +9,6 @@ export function RegisterPage(): JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const navigate = useNavigate();
   const { mutate, isPending, error } = useRegister();
 
   const mismatchError =
@@ -21,10 +20,7 @@ export function RegisterPage(): JSX.Element {
       return;
     }
     // confirmPassword never leaves the browser — only email/password go to the backend.
-    mutate(
-      { email, password },
-      { onSuccess: () => navigate('/') },
-    );
+    mutate({ email, password });
   }
 
   return (

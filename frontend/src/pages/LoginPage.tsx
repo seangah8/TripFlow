@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent, JSX } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useLogin } from '../hooks/useLogin';
 import { Logo } from '../components/Logo';
 import '../styles/LoginPage.scss';
@@ -8,15 +8,11 @@ import '../styles/LoginPage.scss';
 export function LoginPage(): JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();
   const { mutate, isPending, error } = useLogin();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    mutate(
-      { email, password },
-      { onSuccess: () => navigate('/') },
-    );
+    mutate({ email, password });
   }
 
   return (
