@@ -1,5 +1,19 @@
 # TripFlow — Future Scope
 
+## Fixes to do before continuing with the versions
+
+Not deferred roadmap items — gaps in already-shipped versions to clean up before starting the next one.
+
+- **City autocomplete**: the wizard's city field is free text — swap it for a Google Places Autocomplete
+  (`type: '(cities)'`) picker so only real cities can be submitted.
+- **Pace controls stop density**: `preferences.vibe` is sent to Claude as context but never actually
+  changes `PLACES_PER_DAY_TARGET` or the per-day cap — relaxed/moderate/packed should each target a
+  different stops-per-day number.
+- **LLM-picked cover photo**: trip/vacation cover images currently just use the first stop by order —
+  have Claude flag the most iconic selected place during curation and use that instead.
+
+---
+
 > Things intentionally left out of the committed v0–v9 roadmap. These aren't afterthoughts —
 > each one was designed in enough detail to know it's buildable, then deliberately deferred for
 > time. Version numbers below continue from the committed roadmap in `BLUE_PRINT.md` (which ends
