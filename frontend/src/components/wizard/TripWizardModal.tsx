@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { DestinationStep } from './DestinationStep';
 import { PreferencesStep } from './PreferencesStep';
 import { ConfirmStep } from './ConfirmStep';
@@ -80,16 +81,19 @@ export function TripWizardModal({ vacationId, occupiedRanges, onClose }: TripWiz
         </div>
 
         {step === 1 && (
-          <DestinationStep
-            city={city}
-            onCityChange={setCity}
-            startDate={startDate}
-            onStartDateChange={setStartDate}
-            endDate={endDate}
-            onEndDateChange={setEndDate}
-            occupiedRanges={occupiedRanges}
-            onNext={() => setStep(2)}
-          />
+          
+          <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} libraries={['places']}>
+            <DestinationStep
+              city={city}
+              onCityChange={setCity}
+              startDate={startDate}
+              onStartDateChange={setStartDate}
+              endDate={endDate}
+              onEndDateChange={setEndDate}
+              occupiedRanges={occupiedRanges}
+              onNext={() => setStep(2)}
+            />
+          </APIProvider>
         )}
 
         {step === 2 && (

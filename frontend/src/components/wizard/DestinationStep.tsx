@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, JSX } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { useMapsLibrary } from '@vis.gl/react-google-maps';
 
 interface OccupiedRange {
   startDate: string;
@@ -81,13 +83,44 @@ export function DestinationStep({
   onNext,
   occupiedRanges = [],
 }: DestinationStepProps): JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const placesLibrary = useMapsLibrary('places');
+  // Only a real Autocomplete selection sets this true — free-typed text alone
+  // can't submit the step, per FUTURE_SCOPE.md's "only real cities" requirement.
+  const [isCitySelected, setIsCitySelected] = useState(false);
+
   const validationError = getValidationError(startDate, endDate, occupiedRanges);
-  const canProceed = Boolean(city.trim() && startDate && endDate && !validationError);
+  const canProceed = Boolean(isCitySelected && startDate && endDate && !validationError);
 
   const excludedIntervals = occupiedRanges.map((range) => ({
     start: parseDateString(range.startDate)!,
     end: parseDateString(range.endDate)!,
   }));
+
+  useEffect(() => {
+    if (!placesLibrary || !inputRef.current) {
+      return;
+    }
+
+    // '(cities)' restricts suggestions to localities, matching FUTURE_SCOPE.md's spec.
+    const autocomplete = new placesLibrary.Autocomplete(inputRef.current, { types: ['(cities)'] });
+    const listener = autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      // getPlace() returns a name-less partial object if the user hits Enter
+      // without picking a suggestion — that's not a valid selection.
+      if (place?.name) {
+        onCityChange(place.name);
+        setIsCitySelected(true);
+      }
+    });
+
+    return () => listener.remove();
+  }, [placesLibrary, onCityChange]);
+
+  function handleCityInputChange(value: string): void {
+    onCityChange(value);
+    setIsCitySelected(false);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -98,13 +131,18 @@ export function DestinationStep({
     <form className="wizard-step" onSubmit={handleSubmit}>
       <h2>Destination &amp; Dates</h2>
       <input
+        ref={inputRef}
         type="text"
         className="wizard-step__input"
         value={city}
-        onChange={(event) => onCityChange(event.target.value)}
-        placeholder="Enter a city"
+        onChange={(event) => handleCityInputChange(event.target.value)}
+        placeholder="Search for a city"
+        autoComplete="off"
         maxLength={MAX_CITY_NAME_LENGTH}
       />
+      {city.trim() && !isCitySelected && (
+        <p className="wizard-step__hint">Please select a city from the suggestions.</p>
+      )}
       <DatePicker
         selected={parseDateString(startDate)}
         onChange={(date: Date | null) => date && onStartDateChange(formatDateToString(date))}
