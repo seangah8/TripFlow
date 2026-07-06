@@ -15,6 +15,8 @@ Not deferred roadmap items — gaps in already-shipped versions to clean up befo
   different stops-per-day number.
 - **LLM-picked cover photo**: trip/vacation cover images currently just use the first stop by order —
   have Claude flag the most iconic selected place during curation and use that instead.
+- **Long trips get too few stops per day**: a 1-day trip yields ~12-14 stops, but a 14-day trip can
+  drop to 2-4/day — raw place supply and curation don't scale with trip length.
 
 ---
 
