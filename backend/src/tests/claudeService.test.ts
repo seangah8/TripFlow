@@ -51,7 +51,7 @@ function fakeTextBlock(text: string): Anthropic.TextBlock {
 function fakeMessage(overrides: Partial<Anthropic.Message> = {}): Anthropic.Message {
   return {
     stop_reason: 'end_turn',
-    content: [fakeTextBlock(JSON.stringify({ selectedPlaces: [] }))],
+    content: [fakeTextBlock(JSON.stringify({ selectedPlaces: [], iconicPlaceId: '' }))],
     ...overrides,
   } as Anthropic.Message;
 }
@@ -92,21 +92,24 @@ describe('buildUserPrompt', () => {
 });
 
 describe('extractSelectedPlaces', () => {
-  // Happy path: valid JSON matching the schema parses into the expected stop objects.
+  // Happy path: valid JSON matching the schema parses into the expected stops plus iconicPlaceId.
   it('parses a well-formed structured-output response', () => {
     const message = fakeMessage({
       content: [
         fakeTextBlock(
           JSON.stringify({
             selectedPlaces: [makeSelection('a', { estimatedMinutes: 30 }), makeSelection('b', { estimatedMinutes: 90 })],
+            iconicPlaceId: 'a',
           }),
         ),
       ],
     });
-    expect(extractSelectedPlaces(message)).toEqual([
+    const result = extractSelectedPlaces(message);
+    expect(result.stops).toEqual([
       makeSelection('a', { estimatedMinutes: 30 }),
       makeSelection('b', { estimatedMinutes: 90 }),
     ]);
+    expect(result.iconicPlaceId).toBe('a');
   });
 
   // Claude declining to answer is a normal HTTP 200 — must be caught via stop_reason, not a thrown error.
@@ -136,6 +139,12 @@ describe('extractSelectedPlaces', () => {
     expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
   });
 
+  // iconicPlaceId is required at the top level, independent of selectedPlaces being well-formed.
+  it('throws ClaudeCurationError when iconicPlaceId is missing', () => {
+    const message = fakeMessage({ content: [fakeTextBlock(JSON.stringify({ selectedPlaces: [] }))] });
+    expect(() => extractSelectedPlaces(message)).toThrow(ClaudeCurationError);
+  });
+
   // A single malformed entry shouldn't sink the whole response — only that entry gets dropped.
   it('drops an entry missing a required field instead of throwing', () => {
     const message = fakeMessage({
@@ -143,11 +152,12 @@ describe('extractSelectedPlaces', () => {
         fakeTextBlock(
           JSON.stringify({
             selectedPlaces: [{ googlePlaceId: 'a', estimatedMinutes: 30 }, makeSelection('b')],
+            iconicPlaceId: 'b',
           }),
         ),
       ],
     });
-    expect(extractSelectedPlaces(message).map((s) => s.googlePlaceId)).toEqual(['b']);
+    expect(extractSelectedPlaces(message).stops.map((s) => s.googlePlaceId)).toEqual(['b']);
   });
 
   // The request schema can't enforce numeric bounds, so out-of-range/off-step
@@ -162,11 +172,12 @@ describe('extractSelectedPlaces', () => {
               makeSelection('too-long', { estimatedMinutes: 500 }),
               makeSelection('off-step', { estimatedMinutes: 52 }),
             ],
+            iconicPlaceId: 'too-short',
           }),
         ),
       ],
     });
-    const result = extractSelectedPlaces(message);
+    const result = extractSelectedPlaces(message).stops;
     expect(result.find((s) => s.googlePlaceId === 'too-short')!.estimatedMinutes).toBe(15);
     expect(result.find((s) => s.googlePlaceId === 'too-long')!.estimatedMinutes).toBe(240);
     expect(result.find((s) => s.googlePlaceId === 'off-step')!.estimatedMinutes).toBe(45);
@@ -179,11 +190,12 @@ describe('extractSelectedPlaces', () => {
         fakeTextBlock(
           JSON.stringify({
             selectedPlaces: [makeSelection('a', { reasoning: 'x'.repeat(400) })],
+            iconicPlaceId: 'a',
           }),
         ),
       ],
     });
-    expect(extractSelectedPlaces(message)[0]!.reasoning).toHaveLength(300);
+    expect(extractSelectedPlaces(message).stops[0]!.reasoning).toHaveLength(300);
   });
 });
 
@@ -238,7 +250,7 @@ describe('curatePlaces', () => {
     expect(requestArg.model).toBe('claude-sonnet-5');
     expect(requestArg.thinking).toEqual({ type: 'disabled' });
     expect(requestArg.output_config.format.type).toBe('json_schema');
-    expect(requestArg.output_config.format.schema.required).toEqual(['selectedPlaces']);
+    expect(requestArg.output_config.format.schema.required).toEqual(['selectedPlaces', 'iconicPlaceId']);
     expect(requestArg.messages[0].content).toContain('Trip length: 4 days');
   });
 
@@ -255,6 +267,7 @@ describe('curatePlaces', () => {
                 makeSelection('c', { estimatedMinutes: 120 }),
                 makeSelection('not-real'),
               ],
+              iconicPlaceId: 'a',
             }),
           ),
         ],
@@ -263,8 +276,54 @@ describe('curatePlaces', () => {
 
     const result = await curatePlaces(places, PREFERENCES, 4, fakeClient(create));
 
-    expect(result.map((s) => s.place.googlePlaceId)).toEqual(['a', 'c']);
-    expect(result.map((s) => s.estimatedMinutes)).toEqual([30, 120]);
+    expect(result.stops.map((s) => s.place.googlePlaceId)).toEqual(['a', 'c']);
+    expect(result.stops.map((s) => s.estimatedMinutes)).toEqual([30, 120]);
+  });
+
+  // The cover photo should resolve to the flagged place's photoName, not just any candidate's.
+  it('resolves coverPhotoName to the iconic place among the kept stops', async () => {
+    const places = [
+      makePlace('a', { photoName: 'places/a/photo' }),
+      makePlace('b', { photoName: 'places/b/photo' }),
+    ];
+    const create = jest.fn().mockResolvedValue(
+      fakeMessage({
+        content: [
+          fakeTextBlock(
+            JSON.stringify({
+              selectedPlaces: [makeSelection('a'), makeSelection('b')],
+              iconicPlaceId: 'b',
+            }),
+          ),
+        ],
+      }),
+    );
+
+    const result = await curatePlaces(places, PREFERENCES, 4, fakeClient(create));
+
+    expect(result.coverPhotoName).toBe('places/b/photo');
+  });
+
+  // Anti-hallucination guard for the cover photo: an iconicPlaceId naming a place that
+  // wasn't actually kept (invented, or excluded during curation) must not be trusted.
+  it('resolves coverPhotoName to null when iconicPlaceId does not match a kept place', async () => {
+    const places = [makePlace('a', { photoName: 'places/a/photo' })];
+    const create = jest.fn().mockResolvedValue(
+      fakeMessage({
+        content: [
+          fakeTextBlock(
+            JSON.stringify({
+              selectedPlaces: [makeSelection('a')],
+              iconicPlaceId: 'not-a-kept-place',
+            }),
+          ),
+        ],
+      }),
+    );
+
+    const result = await curatePlaces(places, PREFERENCES, 4, fakeClient(create));
+
+    expect(result.coverPhotoName).toBeNull();
   });
 
   it('propagates ClaudeCurationError from a refused request', async () => {

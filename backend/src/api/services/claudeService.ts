@@ -1,7 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Place } from '../../entities/Place';
 import type { TripPreferences } from '../../types/trip';
-import type { ClaudeCuratedStop, ClaudePlaceSummary, CurationOutput, CuratedStop } from '../../types/claudeCuration';
+import type {
+  ClaudeCuratedStop,
+  ClaudePlaceSummary,
+  CurationOutput,
+  CurationResult,
+  CuratedStop,
+  ExtractedCuration,
+} from '../../types/claudeCuration';
 
 // Locked in BLUE_PRINT.md Section 5 — curation is a classification-style task over a list
 // Google already returned, not open-ended reasoning, so Sonnet 5 is the right tier.
@@ -49,8 +56,11 @@ const CURATION_SCHEMA = {
         additionalProperties: false,
       },
     },
+    // Sibling field, not a per-place flag — guarantees "at most one iconic place"
+    // structurally instead of needing to be defended in code across many entries.
+    iconicPlaceId: { type: 'string' },
   },
-  required: ['selectedPlaces'],
+  required: ['selectedPlaces', 'iconicPlaceId'],
   additionalProperties: false,
 } as const;
 
@@ -97,7 +107,11 @@ realistic whole number of minutes, between 15 and 240, in 15-minute
 increments, for how long a typical visitor would spend there); and a
 reasoning string (at most 300 characters) briefly explaining, for the
 traveler reading it, why this place earned its spot on the trip given their
-stated preferences.`;
+stated preferences.
+
+Also return a top-level iconicPlaceId: the exact googlePlaceId, from among the
+places you kept, of the single most iconic, photogenic, must-see stop for this
+whole trip — the one place that would best represent it as a cover photo.`;
 
 function createClaudeClient(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -116,7 +130,7 @@ function normalizeEstimatedMinutes(rawMinutes: number): number {
 
 // A refusal or truncation is a normal, non-throwing HTTP 200 from the SDK's perspective —
 // stop_reason has to be checked before the content is trusted at all.
-export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCuratedStop[] {
+export function extractSelectedPlaces(message: Anthropic.Message): ExtractedCuration {
   if (message.stop_reason === 'refusal') {
     throw new ClaudeCurationError('Claude refused the curation request');
   }
@@ -136,14 +150,19 @@ export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCurated
     throw new ClaudeCurationError(`Claude curation response was not valid JSON: ${(error as Error).message}`);
   }
 
-  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as CurationOutput).selectedPlaces)) {
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    !Array.isArray((parsed as CurationOutput).selectedPlaces) ||
+    typeof (parsed as CurationOutput).iconicPlaceId !== 'string'
+  ) {
     throw new ClaudeCurationError('Claude curation response did not match the expected schema');
   }
 
   // Defensive validation/normalization — the request schema only asserts type/required,
   // so the actual bounds are enforced here based only on the prompt's instructions to Claude.
   const entries: unknown[] = (parsed as CurationOutput).selectedPlaces;
-  return entries
+  const stops = entries
     .filter(
       (entry): entry is ClaudeCuratedStop =>
         !!entry &&
@@ -157,6 +176,8 @@ export function extractSelectedPlaces(message: Anthropic.Message): ClaudeCurated
       estimatedMinutes: normalizeEstimatedMinutes(entry.estimatedMinutes),
       reasoning: entry.reasoning.slice(0, MAX_REASONING_LENGTH),
     }));
+
+  return { stops, iconicPlaceId: (parsed as CurationOutput).iconicPlaceId };
 }
 
 // Never trusts Claude's ids directly — filtering the *known* `places` array down to whichever
@@ -178,7 +199,7 @@ export async function curatePlaces(
   preferences: TripPreferences,
   totalDays: number,
   client: Anthropic = createClaudeClient(),
-): Promise<CuratedStop[]> {
+): Promise<CurationResult> {
   const response = await client.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: computeMaxOutputTokens(totalDays),
@@ -195,6 +216,12 @@ export async function curatePlaces(
     messages: [{ role: 'user', content: buildUserPrompt(places, preferences, totalDays) }],
   });
 
-  const selectedStops = extractSelectedPlaces(response);
-  return filterToKnownStops(selectedStops, places);
+  const { stops: selectedStops, iconicPlaceId } = extractSelectedPlaces(response);
+  const stops = filterToKnownStops(selectedStops, places);
+
+  // Same anti-hallucination principle as filterToKnownStops: only trust iconicPlaceId
+  // if it names one of the places actually kept in the trip, not just any candidate.
+  const iconicStop = stops.find((stop) => stop.place.googlePlaceId === iconicPlaceId);
+
+  return { stops, coverPhotoName: iconicStop?.place.photoName ?? null };
 }

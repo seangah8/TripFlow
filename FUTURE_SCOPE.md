@@ -8,8 +8,10 @@ Get it live somewhere real — before any of the fixes below.
 
 Not deferred roadmap items — gaps in already-shipped versions to clean up before starting the next one.
 
-- **City autocomplete**: the wizard's city field is free text — swap it for a Google Places Autocomplete
-  (`type: '(cities)'`) picker so only real cities can be submitted.
+- **City search has no geographic anchor**: `fetchSearchTextPage` sends Google only a free-text
+  `"...in {city}"` phrase, no `locationBias` — obscure localities (surfaced by the v9.5 city
+  Autocomplete) can return results scattered nationwide instead of clustered locally. Fix: capture
+  lat/lng from the Autocomplete selection and pass it as `locationBias`.
 - **Pace controls stop density**: `preferences.vibe` is sent to Claude as context but never actually
   changes `PLACES_PER_DAY_TARGET` or the per-day cap — relaxed/moderate/packed should each target a
   different stops-per-day number.

@@ -9,8 +9,11 @@ export interface ClaudeCuratedStop {
 }
 
 // Shape of the structured-output response claudeService.ts asks Claude to return.
+// iconicPlaceId is a sibling field, not a per-place flag — Claude names exactly one
+// googlePlaceId (from among selectedPlaces) as the trip's cover photo.
 export interface CurationOutput {
   selectedPlaces: ClaudeCuratedStop[];
+  iconicPlaceId: string;
 }
 
 // Trimmed per-place summary sent to Claude for a curation decision — no photoName,
@@ -30,4 +33,18 @@ export interface CuratedStop {
   place: Place;
   estimatedMinutes: number;
   reasoning: string;
+}
+
+// Raw parse result from extractSelectedPlaces, before selectedPlaces/iconicPlaceId are
+// matched against the known candidate list.
+export interface ExtractedCuration {
+  stops: ClaudeCuratedStop[];
+  iconicPlaceId: string;
+}
+
+// What curatePlaces hands back to tripService.ts — the curated stops plus the resolved
+// cover photo (null if iconicPlaceId didn't match one of the places actually kept).
+export interface CurationResult {
+  stops: CuratedStop[];
+  coverPhotoName: string | null;
 }

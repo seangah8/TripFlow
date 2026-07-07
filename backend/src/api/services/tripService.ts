@@ -1,4 +1,4 @@
-import { In, type QueryDeepPartialEntity } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm';
 import { AppDataSource } from '../../config/data-source';
 import { Trip } from '../../entities/Trip';
 import { TripStop } from '../../entities/TripStop';
@@ -13,7 +13,7 @@ import type {
   TripStopResponse,
   TripSummaryResponse,
 } from '../../types/trip';
-import type { CuratedStop } from '../../types/claudeCuration';
+import type { CuratedStop, CurationResult } from '../../types/claudeCuration';
 
 const MAX_TRIP_DAYS = 14;
 const PLACES_PER_DAY_TARGET = 5;
@@ -95,6 +95,9 @@ export async function generateTrip(
   const targetPlaceCount = Math.max(days.length * PLACES_PER_DAY_TARGET, MIN_PLACES_TARGET);
 
   let bestCuratedStops: CuratedStop[] = [];
+  // Tracked alongside bestCuratedStops so the cover photo always matches whichever
+  // attempt's curated stops actually won — not necessarily the last attempt run.
+  let bestCoverPhotoName: string | null = null;
   let previousCandidateCount = -1;
 
   for (let attempt = 0; attempt < MAX_CURATION_ATTEMPTS; attempt++) {
@@ -111,9 +114,9 @@ export async function generateTrip(
     }
     previousCandidateCount = candidatePlaces.length;
 
-    let curated: CuratedStop[];
+    let curationResult: CurationResult;
     try {
-      curated = await curatePlaces(candidatePlaces, preferences, days.length);
+      curationResult = await curatePlaces(candidatePlaces, preferences, days.length);
     } catch (error) {
       // A retry's failure shouldn't discard an already-usable earlier result — keep the
       // best found so far. With nothing usable yet, there's no fallback, so it propagates.
@@ -126,8 +129,9 @@ export async function generateTrip(
 
     // Curation is non-deterministic, so a later attempt can return fewer places than
     // an earlier one — keep the largest result seen across attempts.
-    if (curated.length > bestCuratedStops.length) {
-      bestCuratedStops = curated;
+    if (curationResult.stops.length > bestCuratedStops.length) {
+      bestCuratedStops = curationResult.stops;
+      bestCoverPhotoName = curationResult.coverPhotoName;
     }
 
     if (bestCuratedStops.length >= targetPlaceCount) {
@@ -157,13 +161,9 @@ export async function generateTrip(
   );
   const placesByDay = clusterPlacesByDay(bestCuratedPlaces, days);
 
-  const tripRepository = AppDataSource.getRepository(Trip);
-  const trip = await tripRepository.save(
-    tripRepository.create({ city, startDate, endDate, preferences, ownerId, vacationId: vacationId ?? null }),
-  );
-
   // Each draft carries its own `place` directly, so the stop-to-place pairing
-  // never depends on database round-trip ordering.
+  // never depends on database round-trip ordering. Built before the Trip row so its
+  // (date, order)-sequenced first entry is available as the cover-photo fallback below.
   const stopDrafts: StopDraft[] = [];
   for (const date of days) {
     const dayPlaces = placesByDay.get(date)!;
@@ -174,6 +174,23 @@ export async function generateTrip(
       stopDrafts.push({ date, order: orderIndex + 1, place, ...details });
     });
   }
+
+  // Claude's iconic pick wins if it resolved to a real kept place; otherwise fall back
+  // to the very first stop by (date, order) — stopDrafts is already in that sequence.
+  const coverPhotoName = bestCoverPhotoName ?? stopDrafts[0]?.place.photoName ?? null;
+
+  const tripRepository = AppDataSource.getRepository(Trip);
+  const trip = await tripRepository.save(
+    tripRepository.create({
+      city,
+      startDate,
+      endDate,
+      preferences,
+      ownerId,
+      vacationId: vacationId ?? null,
+      photoName: coverPhotoName,
+    }),
+  );
 
   const tripStopRepository = AppDataSource.getRepository(TripStop);
   const stopEntities = stopDrafts.map((draft) =>
@@ -259,37 +276,14 @@ export async function getTripById(tripId: string, ownerId: string): Promise<Trip
   };
 }
 
-// "First" meaning earliest by (date, order), not insertion order. One query per
-// batch of trip ids, reduced in JS — no cheap "first row per group" in TypeORM.
-export async function getFirstStopPhotoByTripId(tripIds: string[]): Promise<Map<string, string | null>> {
-  const photoByTripId = new Map<string, string | null>();
-  if (tripIds.length === 0) {
-    return photoByTripId;
-  }
-
-  const tripStopRepository = AppDataSource.getRepository(TripStop);
-  const stops = await tripStopRepository.find({
-    where: { tripId: In(tripIds) },
-    relations: { place: true },
-    order: { date: 'ASC', order: 'ASC' },
-  });
-
-  for (const stop of stops) {
-    if (!photoByTripId.has(stop.tripId)) {
-      photoByTripId.set(stop.tripId, stop.place.photoName);
-    }
-  }
-  return photoByTripId;
-}
-
 export async function deleteTrip(tripId: string, ownerId: string): Promise<boolean> {
   const tripRepository = AppDataSource.getRepository(Trip);
   const result = await tripRepository.delete({ id: tripId, ownerId });
   return (result.affected ?? 0) > 0;
 }
 
-// Dashboard card list — no full trip_stops join (only the first-stop photo
-// lookup above); cards only ever show city/dates/photo (see TripSummaryResponse).
+// Dashboard card list — no trip_stops join at all: Trip.photoName is resolved once at
+// generation time (see generateTrip), so the cover photo is just a column read here.
 export async function listTripsByOwner(ownerId: string): Promise<TripSummaryResponse[]> {
   const tripRepository = AppDataSource.getRepository(Trip);
   const trips = await tripRepository.find({
@@ -297,13 +291,11 @@ export async function listTripsByOwner(ownerId: string): Promise<TripSummaryResp
     order: { createdAt: 'DESC' },
   });
 
-  const photoByTripId = await getFirstStopPhotoByTripId(trips.map((trip) => trip.id));
-
   return trips.map((trip) => ({
     tripId: trip.id,
     city: trip.city,
     startDate: trip.startDate,
     endDate: trip.endDate,
-    photoName: photoByTripId.get(trip.id) ?? null,
+    photoName: trip.photoName,
   }));
 }

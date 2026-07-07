@@ -32,6 +32,10 @@ export class Trip {
   @JoinColumn({ name: 'owner_id' })
   owner!: User;
 
+  // Resolved once at generation time from Claude's iconic-place pick
+  @Column('varchar', { nullable: true })
+  photoName!: string | null;
+
   @Column('uuid', { nullable: true })
   vacationId!: string | null;
 
