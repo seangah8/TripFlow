@@ -49,7 +49,7 @@ const FIELD_MASK = [
 
 // Google requires a short delay after receiving a nextPageToken before it
 // becomes valid for the next request — without it, the follow-up call 400s.
-const PAGE_TOKEN_DELAY_MS = 2000;
+const PAGE_TOKEN_DELAY_MS = 1000;
 
 async function fetchSearchTextPage(
   queryText: string,

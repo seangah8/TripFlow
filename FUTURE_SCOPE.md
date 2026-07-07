@@ -9,6 +9,11 @@ Not deferred roadmap items — gaps in already-shipped versions to clean up befo
   different stops-per-day number.
 - **Long trips get too few stops per day**: a 1-day trip yields ~12-14 stops, but a 14-day trip can
   drop to 2-4/day — raw place supply and curation don't scale with trip length.
+- **Multi-city vacations get inconsistent stop counts**: two cities in the same vacation can end up
+  with noticeably different numbers of stops from each other.
+- **Small cities pull in places from too far away**: when a city doesn't have enough places matching
+  the search text query, the search radius keeps expanding and starts pulling in places from
+  neighboring cities instead — should cap the search radius instead of letting it drift that far.
 
 ---
 
