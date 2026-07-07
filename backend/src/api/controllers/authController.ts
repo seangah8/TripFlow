@@ -13,10 +13,16 @@ import type { RegisterRequest, LoginRequest } from '../../types/auth';
 
 const SESSION_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 function setSessionCookie(res: Response, token: string): void {
   res.cookie('token', token, {
     httpOnly: true,
-    sameSite: 'lax',
+    // Production serves frontend/backend from different domains (Vercel/Render), which
+    // needs sameSite: 'none' for the cookie to cross that gap — but browsers only honor
+    // 'none' when secure is also true, hence both being tied to the same NODE_ENV check.
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: SESSION_COOKIE_MAX_AGE_MS,
   });
 }
@@ -71,7 +77,9 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
 
 // No auth required — logging out an already-logged-out session is harmless.
 export function logoutHandler(req: Request, res: Response): void {
-  res.clearCookie('token');
+  // clearCookie needs the same secure/sameSite attributes used to set the cookie —
+  // browsers won't reliably clear it otherwise.
+  res.clearCookie('token', { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax' });
   res.json({ ok: true });
 }
 

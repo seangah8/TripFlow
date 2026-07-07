@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  // Tests have no place in the production build shipped to Render — keeping them out
+  // of dist/ also stops Jest from picking up compiled dist/tests/*.js as a second,
+  // duplicate set of test suites alongside the ts-jest-run src/tests/*.ts. typecheck
+  // still uses the base tsconfig.json (with tests included) since it never emits.
+  "exclude": ["src/tests/**/*"]
+}

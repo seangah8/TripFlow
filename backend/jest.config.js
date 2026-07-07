@@ -1,6 +1,9 @@
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'node',
+  // Defensive, on top of tsconfig.build.json already excluding tests from dist/ —
+  // stops a stale/pre-fix dist/ from ever making Jest run every test twice.
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   transform: {
     '^.+\\.ts$': [
       'ts-jest',
