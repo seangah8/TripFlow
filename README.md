@@ -18,7 +18,9 @@ together. This README describes the app as of v9, the final committed version.
 - See [Why these architectural decisions](#why-these-architectural-decisions) and
   [Known limitations](#known-limitations--with-more-time) below for the shortest path to
   understanding the trade-offs made.
-- To actually run it: [Getting started](#getting-started) below — needs a Postgres instance and
+- To try it live: **[trip-flow-ruby.vercel.app](https://trip-flow-ruby.vercel.app)** — no setup
+  needed.
+- To run it yourself: [Getting started](#getting-started) below — needs a Postgres instance and
   your own Google Places + Anthropic API keys (see [Environment variables](#environment-variables)).
 
 ---
@@ -155,11 +157,16 @@ TripFlow/
 
 ## Deployment
 
-Not deployed anywhere for this submission — it's meant to be run locally per
-[Getting started](#getting-started). To actually deploy it: the backend is a standard Express app
-(`npm run build` → `node dist/server.js`) needing a reachable Postgres instance and the same env
-vars as local; the frontend is a static Vite build (`npm run build --prefix frontend`) servable
-from any static host, pointed at the deployed backend's URL.
+Live at **[trip-flow-ruby.vercel.app](https://trip-flow-ruby.vercel.app)**:
+
+- **Frontend** — static Vite build on [Vercel](https://vercel.com), pointed at the backend via
+  `VITE_API_URL`. `frontend/vercel.json` rewrites every path to `index.html` so React Router's
+  client-side routes (e.g. `/trips/:tripId`) survive a direct load or refresh.
+- **Backend + database** — Express web service and a managed Postgres instance, both on
+  [Render](https://render.com), in the same region so they talk over Render's private network
+  (`DB_SSL=true`, since Render's managed Postgres requires SSL). `NODE_ENV=production` there
+  switches the session cookie to `secure` + `sameSite: 'none'`, required for the cookie to cross
+  the Vercel↔Render domain gap. `CORS_ORIGIN` on the backend is set to the exact Vercel origin.
 
 ---
 
