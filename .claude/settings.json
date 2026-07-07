@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"c:\\Users\\seang\\Documents\\Study\\React\\Rotemx\\TripFlow\\.claude\\hooks\\session-notes-guard.js\"",
+            "shell": "powershell",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"c:\\Users\\seang\\Documents\\Study\\React\\Rotemx\\TripFlow\\.claude\\hooks\\ai-pipeline-reminder.js\"",
+            "shell": "powershell",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
